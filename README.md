@@ -1,8 +1,8 @@
-# User Service API
+# App Directory for FDC3
 
 ## Overview
 
-A RESTful service for managing user data with health monitoring capabilities.
+An application directory (appD) is a structured repository of information about apps that can be used in an FDC3-enabled desktop. In other words, it’s a convenient way of storing and managing metadata about apps in your ecosystem.
 
 ## Table of Contents
 
@@ -38,7 +38,7 @@ A RESTful service for managing user data with health monitoring capabilities.
 
 ```bash
 # Clone the repository
-git clone [repository-url]
+git clone https://github.com/kushagraGit/finos_hackathon_citi_vikings.git
 
 # Install dependencies
 npm install
@@ -160,8 +160,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-- Project Maintainer: [Your Name]
-- Email: [your.email@example.com]
+- Project Maintainer: Vishal Gautam, Yousuf Ejaz Ahmad, Kushagra Asthana
+- Email: <vishal.gautam@gmail.com>, <yousuf.ejaz.ahmad@gmail.com>, <kushagra.asthana@gmail.com>
 
 ## Acknowledgments
 

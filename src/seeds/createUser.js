@@ -1,8 +1,8 @@
-const User = require("../models/user");
+const User = require("../models/userModel");
 
 const createInitialUser = async () => {
   const me = new User({
-    name: "Vishal Asthana",
+    name: "Vishal Gautam",
     email: "vishal.paypal@gmail.com",
     password: "Test@1234",
     age: 26,

@@ -9,6 +9,8 @@
   "author": "Kushagra, Yousuf, Vishal",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "mongoose": "^8.8.1",
+    "validator": "^13.12.0"
   }
 }

@@ -1,6 +1,6 @@
 const express = require("express");
-const { connectMongoDB } = require("./config/database");
 const env = require("./config/environment");
+const { connectMongoDB } = require("./database/mongo");
 const { createInitialUser } = require("./seeds/createUser");
 const userRoutes = require("./routes/user");
 const healthRoutes = require("./routes/health");

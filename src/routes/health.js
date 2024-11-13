@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const mongoose = require("mongoose");
+const { isMongoConnected } = require("../database/mongo");
 
 // Basic health check
 router.get("/health", (req, res) => {
@@ -12,17 +12,10 @@ router.get("/health", (req, res) => {
   });
 });
 
-// Detailed health check including DB connection
+// Detailed health check
 router.get("/health/detailed", async (req, res) => {
   try {
-    // Check MongoDB connection
-    const dbState = mongoose.connection.readyState;
-    const dbStatus = {
-      0: "disconnected",
-      1: "connected",
-      2: "connecting",
-      3: "disconnecting",
-    };
+    const dbConnected = isMongoConnected();
 
     res.status(200).json({
       status: "healthy",
@@ -34,8 +27,8 @@ router.get("/health/detailed", async (req, res) => {
         free: process.memoryUsage().heapTotal - process.memoryUsage().heapUsed,
       },
       database: {
-        status: dbStatus[dbState],
-        healthy: dbState === 1,
+        status: dbConnected ? "connected" : "disconnected",
+        healthy: dbConnected,
       },
     });
   } catch (error) {

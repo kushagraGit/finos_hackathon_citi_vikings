@@ -1,4 +1,4 @@
-const { connectMongoDB } = require("../config/database");
+const { connectMongoDB } = require("../database/mongo");
 const User = require("../models/user");
 
 const DEFAULT_USERS = [
@@ -16,8 +16,8 @@ const DEFAULT_USERS = [
     age: 25,
   },
   {
-    name: "Yousouf",
-    email: "yousouf@gmail.com",
+    name: "Yousuf Ejaz Ahmad",
+    email: "yousuf.ejaz.ahmad@gmail.com",
     password: "Test@456",
     age: 30,
   },

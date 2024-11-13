@@ -1,0 +1,14 @@
+{
+  "name": "fdc3_hackathon_citi_vikings",
+  "version": "1.0.0",
+  "description": "This project is about the hackathon organised by Citi and Finos in 2024",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "author": "Kushagra, Yousuf, Vishal",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.1"
+  }
+}

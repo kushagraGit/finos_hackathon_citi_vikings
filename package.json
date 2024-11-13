@@ -4,6 +4,8 @@
   "description": "This project is about the hackathon organised by Citi and Finos in 2024",
   "main": "index.js",
   "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
     "test": "npm test"
   },
   "author": "Kushagra, Yousuf, Vishal",
@@ -14,6 +16,6 @@
     "validator": "^13.12.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7"
+    "nodemon": "^3.0.3"
   }
 }

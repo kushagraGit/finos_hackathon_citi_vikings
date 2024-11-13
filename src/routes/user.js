@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/user");
+const User = require("../models/userModel");
+const bcrypt = require('bcryptjs');
 
 // Create new user
 router.post("/users1", async (req, res) => {
@@ -15,17 +16,38 @@ router.post("/users1", async (req, res) => {
 
 // Create initial admin user (for testing/seeding)
 router.post("/users/seed", async (req, res) => {
+  console.log("I am seeding the user");
   try {
-    const adminUser = new User({
-      name: "Vishal Asthana",
-      email: "vishal.paypal@gmail.com",
-      password: "Test@1234",
-      age: 26,
+    if (!User || !User.prototype.save) {
+      console.error("User model not properly imported");
+      return res.status(500).send({ error: "User model not properly configured" });
+    }
+
+    const {name,email,password,age} = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).send({ error: "Required fields are missing" });
+    }
+
+    const user = new User({
+      name,
+      email,
+      password,
+      age
     });
-    const savedUser = await adminUser.save();
+
+    const savedUser = await user.save();
+    
+    if (!savedUser) {
+      return res.status(400).send({ error: "Failed to save user" });
+    }
+    
     res.status(201).send(savedUser);
   } catch (error) {
-    res.status(400).send({ error: error.message });
+    console.error("Error seeding user:", error);
+    res.status(400).send({ 
+      error: error.message || "Failed to create user"
+    });
   }
 });
 

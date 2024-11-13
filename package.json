@@ -11,6 +11,7 @@
   "author": "Kushagra, Yousuf, Vishal",
   "license": "MIT",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "express": "^4.21.1",
     "mongoose": "^8.8.1",
     "validator": "^13.12.0"

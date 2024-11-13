@@ -4,16 +4,19 @@
   "description": "This project is about the hackathon organised by Citi and Finos in 2024",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "test": "npm test"
+    "start": "NODE_ENV=production node src/index.js",
+    "dev": "NODE_ENV=development nodemon src/index.js",
+    "test": "NODE_ENV=test jest",
+    "seed": "NODE_ENV=development node src/seeds/createUser.js"
   },
   "author": "Kushagra, Yousuf, Vishal",
   "license": "MIT",
   "dependencies": {
     "express": "^4.21.1",
-    "mongoose": "^8.8.1",
-    "validator": "^13.12.0"
+    "mongoose": "^7.0.0",
+    "validator": "^13.12.0",
+    "axios": "^1.6.7",
+    "dotenv": "^16.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

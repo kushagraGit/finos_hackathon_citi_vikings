@@ -1,9 +1,11 @@
 const mongoose = require("mongoose");
+const env = require("./environment");
 
 const connectMongoDB = () => {
-  mongoose.connect(
-    "mongodb+srv://kushagrapaypal1:xLrTk1hVSACABnkH@finoshackathon.6tc7q.mongodb.net/?retryWrites=true&w=majority&appName=finosHackathon"
-  );
+  return mongoose.connect(env.MONGODB_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
 };
 
 module.exports = { connectMongoDB };

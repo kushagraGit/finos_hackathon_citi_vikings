@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Application = require("../models/application");
 const { createInitialApplications } = require("../seeds/createApplication");
+const { protect } = require( "../middleware/authMiddleware" );
+const { authorize } = require( "../middleware/authorizeMiddleware" );
 
 /**
  * @swagger
@@ -558,4 +560,72 @@ router.get("/v2/apps/intents/:intentName", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /v1/applications/approve:
+ * patch:
+ * summary: Approve or reject an application
+ * tags: [Applications]
+ * requestBody:
+ *   required: true
+ *   content:
+ *     application/json:
+ *       schema:
+ *         type: object
+ *         properties:
+ *           appId:
+ *             type: string
+ *             required: true
+ *           approval:
+ *             type: string
+ *             enum: [accepted, rejected]
+ *             required: true
+ * responses:
+ *   200:
+ *     description: Application status updated successfully
+ *   404:
+ *     description: Application not found
+ */
+router.patch("/applications/approve", protect, authorize("admin"), async (req, res) => {
+  const { appId, approval } = req.body;
+
+  if (!appId || !approval) {
+    return res.status(400).send({ error: "appId and approval status are required" });
+  }
+
+  try {
+    // Find the application by appId
+    const application = await Application.findOne({ appId });
+
+    if (!application) {
+      return res.status(404).send({ error: "Application not found" });
+    }
+
+    if (approval === "accepted") {
+      // If approval is "accepted", set status to "active"
+      application.status = "active";
+      await application.save();
+
+      return res.status(200).send({
+        message: "Application approved and activated successfully",
+        application: { appId: application.appId, title: application.title, status: application.status },
+      });
+    } else if (approval === "rejected") {
+      // If approval is "rejected", delete the application
+      await Application.findOneAndDelete({ appId });
+
+      return res.status(200).send({
+        message: "Application rejected and deleted successfully",
+        application: { appId, title: application.title },
+      });
+    } else {
+      return res.status(400).send({ error: "Invalid approval value" });
+    }
+  } catch (error) {
+    return res.status(500).send({
+      error: "Failed to process request",
+      details: error.message,
+    });
+  }
+});
 module.exports = router;

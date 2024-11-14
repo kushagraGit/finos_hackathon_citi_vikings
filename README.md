@@ -75,6 +75,12 @@ MONGODB_URL=your_mongodb_connection_string
 
 ## API Documentation
 
+Once the server is running, you can access the Swagger documentation at:
+
+```
+http://localhost:8080/api-docs
+```
+
 Detailed documentation is available for:
 
 - [Health Check Documentation](./docs/health-check.md)
@@ -98,53 +104,88 @@ GET    /v1/health/detailed # Detailed health status
 
 ## Development
 
-### Running in Development Mode
+In the project directory, you can run:
+
+### `npm start`
+
+Runs the app in production mode.
+
+```bash
+npm start
+```
+
+### `npm run dev`
+
+Runs the app in development mode with hot reload.
 
 ```bash
 npm run dev
 ```
 
-### Code Style
+### `npm test`
+
+Launches the test runner.
 
 ```bash
-# Run linter
-npm run lint
-
-# Fix linting issues
-npm run lint:fix
-```
-
-## Testing
-
-```bash
-# Run tests
 npm test
-
-# Run tests with coverage
-npm run test:coverage
 ```
 
-## Deployment
+### `npm run seed`
 
-### Docker
+Seeds both users and applications data in development mode.
 
 ```bash
-# Build Docker image
-docker build -t user-service .
-
-# Run Docker container
-docker run -p 8080:8080 user-service
+npm run seed
 ```
 
-### Docker Compose
+### `npm run seed:users`
+
+Seeds only user data in development mode. This will create default users with the following data:
 
 ```bash
-# Start services
-docker-compose up -d
-
-# Stop services
-docker-compose down
+npm run seed:users
 ```
+
+Example users created:
+
+- Vishal Gautam (Admin)
+- Kushagra Asthana
+- Yousuf Ejaz Ahmad
+
+### `npm run seed:apps`
+
+Seeds only application data in development mode. This will create default FDC3 applications:
+
+```bash
+npm run seed:apps
+```
+
+Example applications created:
+
+- FDC3 Workbench
+- Trading View
+- Market Data Terminal
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Server Configuration
+PORT=8080
+HOST=localhost
+NODE_ENV=development # Options: development, production, test
+
+# MongoDB Configuration
+MONGODB_URL=your_mongodb_connection_string
+```
+
+## Development Notes
+
+1. The seed commands are only available in development mode
+2. Running in development mode (`npm run dev`) will automatically seed the data
+3. Seed commands can be run multiple times safely (they check for duplicates)
+4. Production mode disables seeding functionality
 
 ## Contributing
 

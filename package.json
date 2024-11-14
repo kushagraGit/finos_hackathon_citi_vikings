@@ -7,7 +7,9 @@
     "start": "NODE_ENV=production node src/index.js",
     "dev": "NODE_ENV=development nodemon src/index.js",
     "test": "NODE_ENV=test jest",
-    "seed": "NODE_ENV=development node src/seeds/createUser.js"
+    "seed": "NODE_ENV=development node src/seeds/createUser.js && node src/seeds/createApplication.js",
+    "seed:users": "NODE_ENV=development node src/seeds/createUser.js",
+    "seed:apps": "NODE_ENV=development node src/seeds/createApplication.js"
   },
   "author": "Kushagra, Yousuf, Vishal",
   "license": "MIT",

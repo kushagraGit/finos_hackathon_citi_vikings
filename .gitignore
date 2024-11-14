@@ -1,5 +1,6 @@
 # Environment variables
-.env
+# Remove below comment later on. Currently commented to allow for seamless development
+# .env
 .env.local
 .env.*
 !.env.example

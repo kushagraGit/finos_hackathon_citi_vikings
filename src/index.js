@@ -2,6 +2,7 @@ const express = require("express");
 const env = require("./config/environment");
 const { connectMongoDB } = require("./database/mongo");
 const { createInitialUser } = require("./seeds/createUser");
+const { createInitialApplications } = require("./seeds/createApplication");
 const userRoutes = require("./routes/user");
 const healthRoutes = require("./routes/health");
 const applicationRoutes = require("./routes/application");
@@ -24,10 +25,15 @@ const startServer = async () => {
     await connectMongoDB();
     console.log(`Connected to MongoDB in ${env.NODE_ENV} mode`);
 
-    // Initialize users in development
+    // Initialize data in development
     if (env.isDevelopment()) {
-      console.log("Initializing development users...");
-      await createInitialUser();
+      console.log("Initializing development data...");
+      await Promise.all([
+        createInitialUser().then(() => console.log("Users initialized")),
+        createInitialApplications().then(() =>
+          console.log("Applications initialized")
+        ),
+      ]);
     }
 
     // Start server

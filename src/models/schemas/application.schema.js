@@ -25,6 +25,21 @@
  *           description: Application version
  *           pattern: "^\\d+\\.\\d+\\.\\d+$"
  *           example: "1.0.0"
+ *         intents:
+ *           type: array
+ *           items:
+ *             $ref: './intent.schema.js'
+ *           description: List of intents supported by the application
+ *           example:
+ *             - name: "ViewChart"
+ *               displayName: "View Trading Chart"
+ *               contexts: ["org.fdc3.instrument"]
+ *               customConfig:
+ *                 agent: "symphony"
+ *                 version: "2.0"
+ *             - name: "ViewContact"
+ *               displayName: "View Contact Details"
+ *               contexts: ["org.symphony.contact"]
  *         categories:
  *           type: array
  *           items:

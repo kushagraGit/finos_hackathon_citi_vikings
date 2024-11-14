@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const bcrypt = require("bcryptjs");
 
 const UserSchema = new mongoose.Schema(
 	{
@@ -45,7 +46,7 @@ const UserSchema = new mongoose.Schema(
 			enum: ["user", "admin", "editor", "appDConsumer"], // Define allowed roles
 			default: "user", // Default role is "user"
 		},
-    status: {
+		status: {
 			type: String,
 			enum: ["active", "inactive"], // Define allowed roles
 			default: "inactive", // Default role is "inactive"
@@ -60,11 +61,22 @@ const UserSchema = new mongoose.Schema(
 // Index for faster queries
 UserSchema.index({ email: 1 });
 
+// Hash the password before saving the user document
+UserSchema.pre("save", async function (next) {
+	const user = this;
+
+	if (user.isModified("password")) {
+		user.password = await bcrypt.hash(user.password, 10); // Hash password with bcrypt
+	}
+
+	next();
+});
+
 // Hide sensitive data when converting to JSON
 UserSchema.methods.toJSON = function () {
-  const user = this.toObject();
-  delete user.password;
-  return user;
+	const user = this.toObject();
+	delete user.password;
+	return user;
 };
 
 module.exports = mongoose.model("User", UserSchema);

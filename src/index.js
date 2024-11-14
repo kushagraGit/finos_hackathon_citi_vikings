@@ -6,6 +6,7 @@ const { createInitialApplications } = require("./seeds/createApplication");
 const userRoutes = require("./routes/user");
 const healthRoutes = require("./routes/health");
 const applicationRoutes = require("./routes/application");
+const { errorHandler, notFound } = require( "./middleware/errorMiddleware" );
 
 const app = express();
 
@@ -19,6 +20,9 @@ require("./config/swagger")(app);
 app.use("/v1", healthRoutes);
 app.use("/v1", userRoutes);
 app.use("/api", applicationRoutes);
+
+app.use(errorHandler);
+app.use(notFound);
 
 const startServer = async () => {
   try {

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Application = require("../models/application");
 const { createInitialApplications } = require("../seeds/createApplication");
+const { protect } = require( "../middleware/authMiddleware" );
 
 /**
  * @swagger

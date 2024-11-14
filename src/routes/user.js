@@ -5,7 +5,7 @@ const { createInitialUser } = require("../seeds/createUser");
 const generateToken = require("../config/generateToken");
 const { protect } = require("../middleware/authMiddleware");
 const { authorize } = require("../middleware/authorizeMiddleware");
-
+const bcrypt = require("bcryptjs");
 /**
  * @swagger
  * /v1/users:
@@ -298,7 +298,7 @@ router.post("/users/initialize", async (req, res) => {
 
 /**
  * @swagger
- * /v1/users/approve:
+ * /v1/users-approve:
  * patch:
  * summary: Approve or reject a user's account
  * tags: [Users]
@@ -377,5 +377,78 @@ router.patch(
 		}
 	}
 );
+
+/**
+ * @swagger
+ * /v1/users/login:
+ *   post:
+ *     summary: Login a user
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "user123"
+ *               password:
+ *                 type: string
+ *                 example: "password123"
+ *     responses:
+ *       200:
+ *         description: User logged in successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   example: "60b8d295f8d4bc001c8e4f9c"
+ *                 name:
+ *                   type: string
+ *                   example: "user123"
+ *                 token:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *       400:
+ *         description: Invalid name or password
+ */
+
+router.post("/users/login", async (req, res) => {
+	const { name, password } = req.body;
+
+	try {
+		// Check if user exists by name
+		const user = await User.findOne({ name });
+		if (!user) {
+			return res
+				.status(400)
+				.json({ error: "Invalid name or password" });
+		}
+
+		// Compare provided password with stored hashed password
+		const isMatch = await bcrypt.compare(password, user.password);
+		if (!isMatch) {
+			return res
+				.status(400)
+				.json({ error: "Invalid name or password" });
+		}
+
+		// Generate JWT token for the user
+		const token = generateToken(user._id);
+
+		// Return user object and token (excluding password)
+		res.status(200).json({
+			user,
+			token,
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Server error", details: error.message });
+	}
+});
 
 module.exports = router;

@@ -6,31 +6,31 @@ An application directory (appD) is a structured repository of information about 
 
 ## Table of Contents
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [API Documentation](#api-documentation)
-- [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
+-   [Features](#features)
+-   [Prerequisites](#prerequisites)
+-   [Getting Started](#getting-started)
+-   [Configuration](#configuration)
+-   [API Documentation](#api-documentation)
+-   [Development](#development)
+-   [Testing](#testing)
+-   [Deployment](#deployment)
+-   [Contributing](#contributing)
 
 ## Features
 
-- User CRUD operations
-- Health monitoring endpoints
-- MongoDB integration
-- Environment-based configuration
-- Seed data support
-- Docker support
+-   User CRUD operations
+-   Health monitoring endpoints
+-   MongoDB integration
+-   Environment-based configuration
+-   Seed data support
+-   Docker support
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- MongoDB
-- npm or yarn
-- Docker (optional)
+-   Node.js (v14 or higher)
+-   MongoDB
+-   npm or yarn
+-   Docker (optional)
 
 ## Getting Started
 
@@ -83,9 +83,9 @@ http://localhost:8080/api-docs
 
 Detailed documentation is available for:
 
-- [Health Check Documentation](./docs/health-check.md)
-- [User API Documentation](./docs/user-api.md)
-- [Deployment Guide](./docs/deployment.md)
+-   [Health Check Documentation](./docs/health-check.md)
+-   [User API Documentation](./docs/user-api.md)
+-   [Deployment Guide](./docs/deployment.md)
 
 ### Quick API Reference
 
@@ -96,10 +96,20 @@ POST   /v1/users          # Create user
 GET    /v1/users/:email   # Get user by email
 PATCH  /v1/users/:email   # Update user
 DELETE /v1/users/:email   # Delete user
+POST  /v1/users/initialize #Initialize users (Development only)
 
 # Health check endpoints
 GET    /v1/health         # Basic health check
 GET    /v1/health/detailed # Detailed health status
+
+#Application endpoints
+POST  /api/v2/apps              #Create a new application
+GET   /api/v2/apps              #Retrieve all application definitions
+GET   /api/v2/apps/{appId}      #Retrieve an application definition by appId
+PATCH  /api/v2/apps/{appId}     #Update an application by appId
+DELETE /api/v2/apps/{appId}     #Delete an application by appId
+POST  /api/v2/apps/search       #Search applications based on multiple criteria
+POST  /api/v2/apps/initialize   #Initialize applications with sample data (Development only)
 ```
 
 ## Development
@@ -148,9 +158,9 @@ npm run seed:users
 
 Example users created:
 
-- Vishal Gautam (Admin)
-- Kushagra Asthana
-- Yousuf Ejaz Ahmad
+-   Vishal Gautam (Admin)
+-   Kushagra Asthana
+-   Yousuf Ejaz Ahmad
 
 ### `npm run seed:apps`
 
@@ -162,9 +172,9 @@ npm run seed:apps
 
 Example applications created:
 
-- FDC3 Workbench
-- Trading View
-- Market Data Terminal
+-   FDC3 Workbench
+-   Trading View
+-   Market Data Terminal
 
 ## Environment Variables
 
@@ -201,11 +211,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-- Project Maintainer: Vishal Gautam, Yousuf Ejaz Ahmad, Kushagra Asthana
-- Email: <vishal.gautam@gmail.com>, <yousuf.ejaz.ahmad@gmail.com>, <kushagra.asthana@gmail.com>
+-   Project Maintainer: Vishal Gautam, Yousuf Ejaz Ahmad, Kushagra Asthana
+-   Email: <Vishalgautam.tech@gmail.com>, <ejazahmadyousuf2@gmail.com>, <kushagra.asthana@gmail.com>
 
 ## Acknowledgments
 
-- MongoDB Team
-- Express.js Team
-- Node.js Community
+-   MongoDB Team
+-   Express.js Team
+-   Node.js Community

@@ -29,23 +29,35 @@ const { authorize } = require( "../middleware/authorizeMiddleware" );
  *       409:
  *         description: Application already exists
  */
-router.post("/v2/apps", async (req, res) => {
-  try {
-    // Check if application already exists
-    const existingApp = await Application.findOne({ appId: req.body.appId });
-    if (existingApp) {
-      return res
-        .status(409)
-        .json({ message: "Application with this ID already exists" });
-    }
+router.post(
+	"/v2/apps",
+	protect,
+	authorize("user", "admin", "editor"),
+	async (req, res) => {
+		try {
+			// Check if application already exists
+			const existingApp = await Application.findOne({
+				appId: req.body.appId,
+			});
+			if (existingApp) {
+				return res
+					.status(409)
+					.json({
+						message: "Application with this ID already exists",
+					});
+			}
 
-    const application = new Application(req.body);
-    await application.save();
-    res.status(201).json(application);
-  } catch (err) {
-    res.status(400).json({ message: "Invalid input data", error: err.message });
-  }
-});
+			const application = new Application(req.body);
+			await application.save();
+			res.status(201).json(application);
+		} catch (err) {
+			res.status(400).json({
+				message: "Invalid input data",
+				error: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -79,7 +91,7 @@ router.post("/v2/apps", async (req, res) => {
  *                 error:
  *                   type: object
  */
-router.get("/v2/apps", async (req, res) => {
+router.get("/v2/apps", protect, async (req, res) => {
   try {
     const apps = await Application.find();
     res.status(200).json({
@@ -135,20 +147,24 @@ router.get("/v2/apps", async (req, res) => {
  *                 error:
  *                   type: object
  */
-router.get("/v2/apps/:appId", async (req, res) => {
-  try {
-    const app = await Application.findOne({ appId: req.params.appId });
-    if (!app) {
-      return res.status(404).json({ error: "Application not found" });
-    }
-    res.status(200).json(app);
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch application",
-      details: err.message,
-    });
-  }
-});
+router.get(
+	"/v2/apps/:appId",
+	protect,
+	async (req, res) => {
+		try {
+			const app = await Application.findOne({ appId: req.params.appId });
+			if (!app) {
+				return res.status(404).json({ error: "Application not found" });
+			}
+			res.status(200).json(app);
+		} catch (err) {
+			res.status(500).json({
+				error: "Failed to fetch application",
+				details: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -192,53 +208,58 @@ router.get("/v2/apps/:appId", async (req, res) => {
  *       400:
  *         description: Invalid input data
  */
-router.patch("/v2/apps/:appId", async (req, res) => {
-  try {
-    const updates = Object.keys(req.body);
-    const allowedUpdates = [
-      "title",
-      "description",
-      "version",
-      "categories",
-      "icons",
-      "screenshots",
-      "contactEmail",
-      "supportEmail",
-      "moreInfo",
-      "publisher",
-      "details",
-      "intents",
-    ];
-    const isValidOperation = updates.every((update) =>
-      allowedUpdates.includes(update)
-    );
+router.patch(
+	"/v2/apps/:appId",
+	protect,
+	authorize( "admin", "editor"),
+	async (req, res) => {
+		try {
+			const updates = Object.keys(req.body);
+			const allowedUpdates = [
+				"title",
+				"description",
+				"version",
+				"categories",
+				"icons",
+				"screenshots",
+				"contactEmail",
+				"supportEmail",
+				"moreInfo",
+				"publisher",
+				"details",
+				"intents",
+			];
+			const isValidOperation = updates.every((update) =>
+				allowedUpdates.includes(update)
+			);
 
-    if (!isValidOperation) {
-      return res.status(400).json({
-        error: "Invalid updates",
-        allowedUpdates,
-      });
-    }
+			if (!isValidOperation) {
+				return res.status(400).json({
+					error: "Invalid updates",
+					allowedUpdates,
+				});
+			}
 
-    const app = await Application.findOne({ appId: req.params.appId });
-    if (!app) {
-      return res.status(404).json({ error: "Application not found" });
-    }
+			const app = await Application.findOne({ appId: req.params.appId });
+			if (!app) {
+				return res.status(404).json({ error: "Application not found" });
+			}
 
-    updates.forEach((update) => (app[update] = req.body[update]));
-    await app.save();
+			updates.forEach((update) => (app[update] = req.body[update]));
+			await app.save();
 
-    res.status(200).json({
-      message: "Application updated successfully",
-      application: app,
-    });
-  } catch (err) {
-    res.status(400).json({
-      error: "Failed to update application",
-      details: err.message,
-    });
-  }
-});
+			res.status(200).json({
+				message: "Application updated successfully",
+				application: app,
+			});
+		} catch (err) {
+			res.status(400).json({
+				error: "Failed to update application",
+				details: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -266,23 +287,30 @@ router.patch("/v2/apps/:appId", async (req, res) => {
  *       404:
  *         description: Application not found
  */
-router.delete("/v2/apps/:appId", async (req, res) => {
-  try {
-    const app = await Application.findOneAndDelete({ appId: req.params.appId });
-    if (!app) {
-      return res.status(404).json({ error: "Application not found" });
-    }
-    res.status(200).json({
-      message: "Application deleted successfully",
-      application: app,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to delete application",
-      details: err.message,
-    });
-  }
-});
+router.delete(
+	"/v2/apps/:appId",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		try {
+			const app = await Application.findOneAndDelete({
+				appId: req.params.appId,
+			});
+			if (!app) {
+				return res.status(404).json({ error: "Application not found" });
+			}
+			res.status(200).json({
+				message: "Application deleted successfully",
+				application: app,
+			});
+		} catch (err) {
+			res.status(500).json({
+				error: "Failed to delete application",
+				details: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -357,113 +385,130 @@ router.delete("/v2/apps/:appId", async (req, res) => {
  *                 details:
  *                   type: string
  */
-router.post("/v1/apps/search", async (req, res) => {
-  try {
-    const { appId, version, title, description, categories } = req.body;
-    const query = {};
-    const validationWarnings = [];
+router.post(
+	"/v1/apps/search",
+	protect,
+	authorize( "admin"),
+	async (req, res) => {
+		try {
+			const { appId, version, title, description, categories } = req.body;
+			const query = {};
+			const validationWarnings = [];
 
-    // Validate and build query for appId
-    if (appId !== undefined) {
-      if (typeof appId === "string" && appId.trim().length > 0) {
-        query.appId = { $regex: appId.trim(), $options: "i" }; // Changed to regex
-      } else {
-        validationWarnings.push(
-          "Invalid appId provided - ignoring this criteria"
-        );
-      }
-    }
+			// Validate and build query for appId
+			if (appId !== undefined) {
+				if (typeof appId === "string" && appId.trim().length > 0) {
+					query.appId = { $regex: appId.trim(), $options: "i" }; // Changed to regex
+				} else {
+					validationWarnings.push(
+						"Invalid appId provided - ignoring this criteria"
+					);
+				}
+			}
 
-    // Validate and build query for version
-    if (version !== undefined) {
-      if (typeof version === "string" && version.trim().length > 0) {
-        query.version = {
-          $regex: version.trim().replace(/\./g, "\\."),
-          $options: "i",
-        }; // Escape dots for regex
-        if (!/^\d+(\.\d+)*$/.test(version.trim())) {
-          validationWarnings.push(
-            "Version format warning: partial match will be used"
-          );
-        }
-      } else {
-        validationWarnings.push(
-          "Invalid version format - ignoring this criteria"
-        );
-      }
-    }
+			// Validate and build query for version
+			if (version !== undefined) {
+				if (typeof version === "string" && version.trim().length > 0) {
+					query.version = {
+						$regex: version.trim().replace(/\./g, "\\."),
+						$options: "i",
+					}; // Escape dots for regex
+					if (!/^\d+(\.\d+)*$/.test(version.trim())) {
+						validationWarnings.push(
+							"Version format warning: partial match will be used"
+						);
+					}
+				} else {
+					validationWarnings.push(
+						"Invalid version format - ignoring this criteria"
+					);
+				}
+			}
 
-    // Validate and build query for title
-    if (title !== undefined) {
-      if (typeof title === "string" && title.trim().length > 0) {
-        // Reduced minimum length requirement
-        query.title = { $regex: title.trim(), $options: "i" };
-      } else {
-        validationWarnings.push(
-          "Invalid title provided - ignoring this criteria"
-        );
-      }
-    }
+			// Validate and build query for title
+			if (title !== undefined) {
+				if (typeof title === "string" && title.trim().length > 0) {
+					// Reduced minimum length requirement
+					query.title = { $regex: title.trim(), $options: "i" };
+				} else {
+					validationWarnings.push(
+						"Invalid title provided - ignoring this criteria"
+					);
+				}
+			}
 
-    // Validate and build query for description
-    if (description !== undefined) {
-      if (typeof description === "string" && description.trim().length > 0) {
-        // Reduced minimum length requirement
-        query.description = { $regex: description.trim(), $options: "i" };
-      } else {
-        validationWarnings.push(
-          "Invalid description provided - ignoring this criteria"
-        );
-      }
-    }
+			// Validate and build query for description
+			if (description !== undefined) {
+				if (
+					typeof description === "string" &&
+					description.trim().length > 0
+				) {
+					// Reduced minimum length requirement
+					query.description = {
+						$regex: description.trim(),
+						$options: "i",
+					};
+				} else {
+					validationWarnings.push(
+						"Invalid description provided - ignoring this criteria"
+					);
+				}
+			}
 
-    // Validate and build query for categories
-    if (categories !== undefined) {
-      if (Array.isArray(categories) && categories.length > 0) {
-        const validCategories = categories
-          .filter((cat) => typeof cat === "string" && cat.trim().length > 0)
-          .map((cat) => new RegExp(cat.trim(), "i")); // Case-insensitive regex for each category
+			// Validate and build query for categories
+			if (categories !== undefined) {
+				if (Array.isArray(categories) && categories.length > 0) {
+					const validCategories = categories
+						.filter(
+							(cat) =>
+								typeof cat === "string" && cat.trim().length > 0
+						)
+						.map((cat) => new RegExp(cat.trim(), "i")); // Case-insensitive regex for each category
 
-        if (validCategories.length > 0) {
-          query.categories = { $in: validCategories };
-        } else {
-          validationWarnings.push(
-            "No valid categories provided - ignoring this criteria"
-          );
-        }
-      } else {
-        validationWarnings.push(
-          "Invalid categories format - ignoring this criteria"
-        );
-      }
-    }
+					if (validCategories.length > 0) {
+						query.categories = { $in: validCategories };
+					} else {
+						validationWarnings.push(
+							"No valid categories provided - ignoring this criteria"
+						);
+					}
+				} else {
+					validationWarnings.push(
+						"Invalid categories format - ignoring this criteria"
+					);
+				}
+			}
 
-    // Check if any valid search criteria remain
-    if (Object.keys(query).length === 0) {
-      return res.status(400).json({
-        error: "No valid search criteria provided",
-        details: "Please provide at least one valid search parameter",
-        validationWarnings,
-      });
-    }
+			// Check if any valid search criteria remain
+			if (Object.keys(query).length === 0) {
+				return res.status(400).json({
+					error: "No valid search criteria provided",
+					details:
+						"Please provide at least one valid search parameter",
+					validationWarnings,
+				});
+			}
 
-    // Execute the query in MongoDB
-    const apps = await Application.find(query);
+			// Execute the query in MongoDB
+			const apps = await Application.find(query);
 
-    // Return the search results with any validation warnings
-    res.status(200).json({
-      message: "Search completed successfully",
-      count: apps.length,
-      applications: apps,
-      ...(validationWarnings.length > 0 && { warnings: validationWarnings }),
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to search applications",
-      details: err.message,
-    });
-  }
-});
+			// Return the search results with any validation warnings
+			res.status(200).json({
+				message: "Search completed successfully",
+				count: apps.length,
+				applications: apps,
+				...(validationWarnings.length > 0 && {
+					warnings: validationWarnings,
+				}),
+			});
+		} catch (err) {
+			res.status(500).json({
+				error: "Failed to search applications",
+				details: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -506,59 +551,69 @@ router.post("/v1/apps/search", async (req, res) => {
  *                 details:
  *                   type: string
  */
-router.post("/v2/apps/initialize", async (req, res) => {
-  try {
-    if (process.env.NODE_ENV === "production") {
-      return res.status(403).json({
-        error: "This endpoint is not available in production",
-      });
-    }
+router.post(
+	"/v2/apps/initialize",
+	protect,
+	authorize("user", "admin", "editor", "appDConsumer"),
+	async (req, res) => {
+		try {
+			if (process.env.NODE_ENV === "production") {
+				return res.status(403).json({
+					error: "This endpoint is not available in production",
+				});
+			}
 
-    const results = await createInitialApplications();
+			const results = await createInitialApplications();
 
-    res.status(201).json({
-      message: "Applications initialized successfully",
-      results,
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: "Failed to initialize applications",
-      details: error.message,
-    });
-  }
-});
+			res.status(201).json({
+				message: "Applications initialized successfully",
+				results,
+			});
+		} catch (error) {
+			res.status(500).json({
+				error: "Failed to initialize applications",
+				details: error.message,
+			});
+		}
+	}
+);
 
 // Add a new endpoint to search by specific intent
-router.get("/v2/apps/intents/:intentName", async (req, res) => {
-  try {
-    const { intentName } = req.params;
-    const { contexts } = req.query;
+router.get(
+	"/v2/apps/intents/:intentName",
+	protect,
+	authorize("user", "admin", "editor", "appDConsumer"),
+	async (req, res) => {
+		try {
+			const { intentName } = req.params;
+			const { contexts } = req.query;
 
-    const query = {
-      "intents.name": { $regex: intentName, $options: "i" },
-    };
+			const query = {
+				"intents.name": { $regex: intentName, $options: "i" },
+			};
 
-    if (contexts) {
-      const contextList = contexts.split(",").map((c) => c.trim());
-      if (contextList.length > 0) {
-        query["intents.contexts"] = { $in: contextList };
-      }
-    }
+			if (contexts) {
+				const contextList = contexts.split(",").map((c) => c.trim());
+				if (contextList.length > 0) {
+					query["intents.contexts"] = { $in: contextList };
+				}
+			}
 
-    const apps = await Application.find(query);
+			const apps = await Application.find(query);
 
-    res.status(200).json({
-      message: "Search completed successfully",
-      count: apps.length,
-      applications: apps,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to search applications by intent",
-      details: err.message,
-    });
-  }
-});
+			res.status(200).json({
+				message: "Search completed successfully",
+				count: apps.length,
+				applications: apps,
+			});
+		} catch (err) {
+			res.status(500).json({
+				error: "Failed to search applications by intent",
+				details: err.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger

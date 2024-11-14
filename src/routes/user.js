@@ -172,44 +172,49 @@ router.get("/users/:email", async (req, res) => {
  *       404:
  *         description: User not found
  */
-router.patch("/users/:email", async (req, res) => {
-	const updates = Object.keys(req.body);
-	const allowedUpdates = ["name", "password", "age", "status"];
-	const isValidOperation = updates.every((update) =>
-		allowedUpdates.includes(update)
-	);
+router.patch(
+	"/users/:email",
+	protect,
+	authorize("admin", "editor"),
+	async (req, res) => {
+		const updates = Object.keys(req.body);
+		const allowedUpdates = ["name", "password", "age", "status"];
+		const isValidOperation = updates.every((update) =>
+			allowedUpdates.includes(update)
+		);
 
-	if (!isValidOperation) {
-		return res.status(400).send({
-			error: "Invalid updates",
-			allowedUpdates,
-		});
-	}
-
-	try {
-		const user = await User.findOne({ email: req.params.email });
-		if (!user) {
-			return res.status(404).send({ error: "User not found" });
+		if (!isValidOperation) {
+			return res.status(400).send({
+				error: "Invalid updates",
+				allowedUpdates,
+			});
 		}
 
-		updates.forEach((update) => (user[update] = req.body[update]));
-		await user.save();
+		try {
+			const user = await User.findOne({ email: req.params.email });
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
 
-		// Return user without password
-		const userResponse = user.toObject();
-		delete userResponse.password;
+			updates.forEach((update) => (user[update] = req.body[update]));
+			await user.save();
 
-		res.status(200).send({
-			message: "User updated successfully",
-			user: userResponse,
-		});
-	} catch (error) {
-		res.status(400).send({
-			error: "Failed to update user",
-			details: error.message,
-		});
+			// Return user without password
+			const userResponse = user.toObject();
+			delete userResponse.password;
+
+			res.status(200).send({
+				message: "User updated successfully",
+				user: userResponse,
+			});
+		} catch (error) {
+			res.status(400).send({
+				error: "Failed to update user",
+				details: error.message,
+			});
+		}
 	}
-});
+);
 
 /**
  * @swagger
@@ -229,27 +234,34 @@ router.patch("/users/:email", async (req, res) => {
  *       404:
  *         description: User not found
  */
-router.delete("/users/:email", async (req, res) => {
-	try {
-		const user = await User.findOneAndDelete({ email: req.params.email });
-		if (!user) {
-			return res.status(404).send({ error: "User not found" });
+router.delete(
+	"/users/:email",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		try {
+			const user = await User.findOneAndDelete({
+				email: req.params.email,
+			});
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
+			res.status(200).send({
+				message: "User deleted successfully",
+				user: {
+					name: user.name,
+					email: user.email,
+					age: user.age,
+				},
+			});
+		} catch (error) {
+			res.status(500).send({
+				error: "Failed to delete user",
+				details: error.message,
+			});
 		}
-		res.status(200).send({
-			message: "User deleted successfully",
-			user: {
-				name: user.name,
-				email: user.email,
-				age: user.age,
-			},
-		});
-	} catch (error) {
-		res.status(500).send({
-			error: "Failed to delete user",
-			details: error.message,
-		});
 	}
-});
+);
 
 /**
  * @swagger

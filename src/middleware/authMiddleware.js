@@ -32,7 +32,6 @@ const protect = asyncHandler(async (req, res, next) => {
 			issuer: "your-app",
 			audience: "your-app-users",
 		});
-    console.log("entered protect");
 
 		// Optional: Check if token is revoked
 		const isRevoked = await checkIfTokenRevoked(token);

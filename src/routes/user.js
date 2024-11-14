@@ -4,7 +4,7 @@ const User = require("../models/user");
 const { createInitialUser } = require("../seeds/createUser");
 const generateToken = require("../config/generateToken");
 const { protect } = require("../middleware/authMiddleware");
-const { authorize } = require( "../middleware/authorizeMiddleware" );
+const { authorize } = require("../middleware/authorizeMiddleware");
 
 /**
  * @swagger
@@ -28,7 +28,7 @@ const { authorize } = require( "../middleware/authorizeMiddleware" );
  */
 router.post("/users", async (req, res) => {
 	try {
-		const { name, email, password, role="user" } = req.body;
+		const { name, email, password, role = "user" } = req.body;
 
 		if (!name || !email || !password) {
 			res.status(400);
@@ -46,7 +46,7 @@ router.post("/users", async (req, res) => {
 			name,
 			email,
 			password,
-      role
+			role,
 		});
 		const savedUser = await user.save();
 		if (savedUser) {
@@ -55,7 +55,8 @@ router.post("/users", async (req, res) => {
 				name: savedUser.name,
 				email: savedUser.email,
 				token: generateToken(savedUser._id),
-        role: savedUser.role
+				role: savedUser.role,
+				status: savedUser.status,
 			});
 		}
 	} catch (error) {
@@ -173,7 +174,7 @@ router.get("/users/:email", async (req, res) => {
  */
 router.patch("/users/:email", async (req, res) => {
 	const updates = Object.keys(req.body);
-	const allowedUpdates = ["name", "password", "age"];
+	const allowedUpdates = ["name", "password", "age", "status"];
 	const isValidOperation = updates.every((update) =>
 		allowedUpdates.includes(update)
 	);
@@ -282,5 +283,87 @@ router.post("/users/initialize", async (req, res) => {
 		});
 	}
 });
+
+/**
+ * @swagger
+ * /v1/users/approve:
+ * patch:
+ * summary: Approve or reject a user's account
+ * tags: [Users]
+ * requestBody:
+ *   required: true
+ *   content:
+ *     application/json:
+ *       schema:
+ *         type: object
+ *         properties:
+ *           email:
+ *             type: string
+ *             required: true
+ *           approval:
+ *             type: string
+ *             enum: [accepted, rejected]
+ *             required: true
+ * responses:
+ *   200:
+ *     description: User status updated successfully
+ *   404:
+ *     description: User not found
+ */
+router.patch(
+	"/users-approve",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		const { email, approval } = req.body;
+
+		if (!email || !approval) {
+			return res
+				.status(400)
+				.send({ error: "Email and approval status are required" });
+		}
+
+		try {
+			// Find the user by email
+			const user = await User.findOne({ email });
+
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
+
+			if (approval === "accepted") {
+				// If approval is "accepted", set status to "active"
+				user.status = "active";
+				await user.save();
+
+				return res.status(200).send({
+					message: "User approved and activated successfully",
+					user: {
+						name: user.name,
+						email: user.email,
+						status: user.status,
+					},
+				});
+			} else if (approval === "rejected") {
+				// If approval is "rejected", delete the user
+				await User.findOneAndDelete({ email });
+
+				return res.status(200).send({
+					message: "User rejected and deleted successfully",
+					user: { name: user.name, email: user.email },
+				});
+			} else {
+				return res
+					.status(400)
+					.send({ error: "Invalid approval value" });
+			}
+		} catch (error) {
+			return res.status(500).send({
+				error: "Failed to process request",
+				details: error.message,
+			});
+		}
+	}
+);
 
 module.exports = router;

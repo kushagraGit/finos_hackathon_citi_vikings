@@ -4,6 +4,8 @@ const authorize = (...allowedRoles) => {
 		if (!req.user) {
 			return res.status(401).json({ message: "Not authorized" });
 		}
+		if (req.user.status === "inactive")
+			return res.status(403).json({ message: "User is inactive" });
 
 		// Check if the user's role is in the list of allowed roles
 		if (!allowedRoles.includes(req.user.role)) {

@@ -45,6 +45,11 @@ const UserSchema = new mongoose.Schema(
 			enum: ["user", "admin", "editor"], // Define allowed roles
 			default: "user", // Default role is "user"
 		},
+    status: {
+			type: String,
+			enum: ["active", "inactive"], // Define allowed roles
+			default: "inactive", // Default role is "inactive"
+		},
 	},
 	{
 		timestamps: true, // Adds createdAt and updatedAt fields

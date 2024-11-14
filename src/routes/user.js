@@ -4,6 +4,7 @@ const User = require("../models/user");
 const { createInitialUser } = require("../seeds/createUser");
 const generateToken = require("../config/generateToken");
 const { protect } = require("../middleware/authMiddleware");
+const { authorize } = require( "../middleware/authorizeMiddleware" );
 
 /**
  * @swagger
@@ -27,7 +28,7 @@ const { protect } = require("../middleware/authMiddleware");
  */
 router.post("/users", async (req, res) => {
 	try {
-		const { name, email, password } = req.body;
+		const { name, email, password, role="user" } = req.body;
 
 		if (!name || !email || !password) {
 			res.status(400);
@@ -45,6 +46,7 @@ router.post("/users", async (req, res) => {
 			name,
 			email,
 			password,
+      role
 		});
 		const savedUser = await user.save();
 		if (savedUser) {
@@ -53,6 +55,7 @@ router.post("/users", async (req, res) => {
 				name: savedUser.name,
 				email: savedUser.email,
 				token: generateToken(savedUser._id),
+        role: savedUser.role
 			});
 		}
 	} catch (error) {
@@ -84,7 +87,7 @@ router.post("/users", async (req, res) => {
  *                   items:
  *                     $ref: '#/components/schemas/User'
  */
-router.get("/users", protect, async (req, res) => {
+router.get("/users", protect, authorize("admin"), async (req, res) => {
 	try {
 		const users = await User.find({}).select("-password");
 		res.status(200).send({

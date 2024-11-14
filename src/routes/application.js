@@ -59,6 +59,8 @@ router.post("/v2/apps", async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
+ *                 count:
+ *                   type: integer
  *                 applications:
  *                   type: array
  *                   items:
@@ -78,9 +80,15 @@ router.post("/v2/apps", async (req, res) => {
 router.get("/v2/apps", async (req, res) => {
   try {
     const apps = await Application.find();
-    res.status(200).json({ applications: apps });
+    res.status(200).json({
+      count: apps.length,
+      applications: apps,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({
+      error: "Failed to fetch applications",
+      details: err.message,
+    });
   }
 });
 
@@ -129,11 +137,14 @@ router.get("/v2/apps/:appId", async (req, res) => {
   try {
     const app = await Application.findOne({ appId: req.params.appId });
     if (!app) {
-      return res.status(404).json({ message: "Application not found" });
+      return res.status(404).json({ error: "Application not found" });
     }
     res.status(200).json(app);
   } catch (err) {
-    res.status(500).json({ message: "Server error", error: err });
+    res.status(500).json({
+      error: "Failed to fetch application",
+      details: err.message,
+    });
   }
 });
 
@@ -200,20 +211,29 @@ router.patch("/v2/apps/:appId", async (req, res) => {
     );
 
     if (!isValidOperation) {
-      return res.status(400).json({ message: "Invalid updates" });
+      return res.status(400).json({
+        error: "Invalid updates",
+        allowedUpdates,
+      });
     }
 
     const app = await Application.findOne({ appId: req.params.appId });
     if (!app) {
-      return res.status(404).json({ message: "Application not found" });
+      return res.status(404).json({ error: "Application not found" });
     }
 
     updates.forEach((update) => (app[update] = req.body[update]));
     await app.save();
 
-    res.status(200).json(app);
+    res.status(200).json({
+      message: "Application updated successfully",
+      application: app,
+    });
   } catch (err) {
-    res.status(400).json({ message: "Update failed", error: err.message });
+    res.status(400).json({
+      error: "Failed to update application",
+      details: err.message,
+    });
   }
 });
 
@@ -247,11 +267,17 @@ router.delete("/v2/apps/:appId", async (req, res) => {
   try {
     const app = await Application.findOneAndDelete({ appId: req.params.appId });
     if (!app) {
-      return res.status(404).json({ message: "Application not found" });
+      return res.status(404).json({ error: "Application not found" });
     }
-    res.status(200).json({ message: "Application deleted successfully" });
+    res.status(200).json({
+      message: "Application deleted successfully",
+      application: app,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Delete failed", error: err.message });
+    res.status(500).json({
+      error: "Failed to delete application",
+      details: err.message,
+    });
   }
 });
 

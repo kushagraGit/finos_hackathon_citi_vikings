@@ -3,7 +3,26 @@ const router = express.Router();
 const User = require("../models/user");
 const { createInitialUser } = require("../seeds/createUser");
 
-// Create new user
+/**
+ * @swagger
+ * /v1/users:
+ *   post:
+ *     summary: Create a new user
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/User'
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       409:
+ *         description: User already exists
+ *       400:
+ *         description: Invalid input data
+ */
 router.post("/users", async (req, res) => {
   try {
     // Check if user already exists
@@ -28,7 +47,27 @@ router.post("/users", async (req, res) => {
   }
 });
 
-// Get all users
+/**
+ * @swagger
+ * /v1/users:
+ *   get:
+ *     summary: Retrieve all users
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ */
 router.get("/users", async (req, res) => {
   try {
     const users = await User.find({}).select("-password");
@@ -44,7 +83,28 @@ router.get("/users", async (req, res) => {
   }
 });
 
-// Get user by email
+/**
+ * @swagger
+ * /v1/users/{email}:
+ *   get:
+ *     summary: Get user by email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: User not found
+ */
 router.get("/users/:email", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.params.email }).select(
@@ -62,7 +122,36 @@ router.get("/users/:email", async (req, res) => {
   }
 });
 
-// Update user by email
+/**
+ * @swagger
+ * /v1/users/{email}:
+ *   patch:
+ *     summary: Update user by email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               age:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       404:
+ *         description: User not found
+ */
 router.patch("/users/:email", async (req, res) => {
   const updates = Object.keys(req.body);
   const allowedUpdates = ["name", "password", "age"];
@@ -102,7 +191,24 @@ router.patch("/users/:email", async (req, res) => {
   }
 });
 
-// Delete user by email
+/**
+ * @swagger
+ * /v1/users/{email}:
+ *   delete:
+ *     summary: Delete user by email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ */
 router.delete("/users/:email", async (req, res) => {
   try {
     const user = await User.findOneAndDelete({ email: req.params.email });
@@ -125,7 +231,18 @@ router.delete("/users/:email", async (req, res) => {
   }
 });
 
-// Initialize users (replaces the old seed endpoint)
+/**
+ * @swagger
+ * /v1/users/initialize:
+ *   post:
+ *     summary: Initialize users (Development only)
+ *     tags: [Users]
+ *     responses:
+ *       201:
+ *         description: Users initialized successfully
+ *       403:
+ *         description: Not available in production
+ */
 router.post("/users/initialize", async (req, res) => {
   try {
     if (process.env.NODE_ENV === "production") {

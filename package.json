@@ -12,11 +12,13 @@
   "author": "Kushagra, Yousuf, Vishal",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.6.7",
+    "dotenv": "^16.0.0",
     "express": "^4.21.1",
     "mongoose": "^7.0.0",
-    "validator": "^13.12.0",
-    "axios": "^1.6.7",
-    "dotenv": "^16.0.0"
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "validator": "^13.12.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

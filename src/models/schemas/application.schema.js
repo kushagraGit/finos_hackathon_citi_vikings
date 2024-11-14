@@ -35,6 +35,8 @@
  *           type: array
  *           items:
  *             type: object
+ *             required:
+ *               - src
  *             properties:
  *               src:
  *                 type: string
@@ -43,12 +45,15 @@
  *                 example: "https://example.com/icon.png"
  *               size:
  *                 type: string
+ *                 pattern: "^\\d+x\\d+$"
  *                 description: Icon size (e.g., '16x16', '32x32')
  *                 example: "32x32"
  *         screenshots:
  *           type: array
  *           items:
  *             type: object
+ *             required:
+ *               - src
  *             properties:
  *               src:
  *                 type: string

@@ -283,6 +283,187 @@ router.delete("/v2/apps/:appId", async (req, res) => {
 
 /**
  * @swagger
+ * /api/v2/apps/search:
+ *   post:
+ *     summary: Search applications based on multiple criteria
+ *     tags: [Applications]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               appId:
+ *                 type: string
+ *                 description: Exact match for application ID (min 1 character)
+ *                 example: "fdc3-workbench"
+ *               version:
+ *                 type: string
+ *                 description: Exact match for version (format x.x.x)
+ *                 example: "1.0.0"
+ *               title:
+ *                 type: string
+ *                 description: Case-insensitive partial match for title (min 2 characters)
+ *                 example: "Market"
+ *               description:
+ *                 type: string
+ *                 description: Case-insensitive partial match for description (min 2 characters)
+ *                 example: "trading"
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Match any of the provided categories (non-empty array of strings)
+ *                 example: ["TRADING", "ANALYTICS"]
+ *     responses:
+ *       200:
+ *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                   description: Number of applications found
+ *                 applications:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Application'
+ *       400:
+ *         description: Invalid search criteria
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 details:
+ *                   type: string
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 details:
+ *                   type: string
+ */
+router.post("/v2/apps/search", async (req, res) => {
+  try {
+    const { appId, version, title, description, categories } = req.body;
+    const query = {};
+    const validationWarnings = [];
+
+    // Validate and build query for appId
+    if (appId !== undefined) {
+      if (typeof appId === "string" && appId.trim().length > 0) {
+        query.appId = { $regex: appId.trim(), $options: "i" }; // Changed to regex
+      } else {
+        validationWarnings.push(
+          "Invalid appId provided - ignoring this criteria"
+        );
+      }
+    }
+
+    // Validate and build query for version
+    if (version !== undefined) {
+      if (typeof version === "string" && version.trim().length > 0) {
+        query.version = {
+          $regex: version.trim().replace(/\./g, "\\."),
+          $options: "i",
+        }; // Escape dots for regex
+        if (!/^\d+(\.\d+)*$/.test(version.trim())) {
+          validationWarnings.push(
+            "Version format warning: partial match will be used"
+          );
+        }
+      } else {
+        validationWarnings.push(
+          "Invalid version format - ignoring this criteria"
+        );
+      }
+    }
+
+    // Validate and build query for title
+    if (title !== undefined) {
+      if (typeof title === "string" && title.trim().length > 0) {
+        // Reduced minimum length requirement
+        query.title = { $regex: title.trim(), $options: "i" };
+      } else {
+        validationWarnings.push(
+          "Invalid title provided - ignoring this criteria"
+        );
+      }
+    }
+
+    // Validate and build query for description
+    if (description !== undefined) {
+      if (typeof description === "string" && description.trim().length > 0) {
+        // Reduced minimum length requirement
+        query.description = { $regex: description.trim(), $options: "i" };
+      } else {
+        validationWarnings.push(
+          "Invalid description provided - ignoring this criteria"
+        );
+      }
+    }
+
+    // Validate and build query for categories
+    if (categories !== undefined) {
+      if (Array.isArray(categories) && categories.length > 0) {
+        const validCategories = categories
+          .filter((cat) => typeof cat === "string" && cat.trim().length > 0)
+          .map((cat) => new RegExp(cat.trim(), "i")); // Case-insensitive regex for each category
+
+        if (validCategories.length > 0) {
+          query.categories = { $in: validCategories };
+        } else {
+          validationWarnings.push(
+            "No valid categories provided - ignoring this criteria"
+          );
+        }
+      } else {
+        validationWarnings.push(
+          "Invalid categories format - ignoring this criteria"
+        );
+      }
+    }
+
+    // Check if any valid search criteria remain
+    if (Object.keys(query).length === 0) {
+      return res.status(400).json({
+        error: "No valid search criteria provided",
+        details: "Please provide at least one valid search parameter",
+        validationWarnings,
+      });
+    }
+
+    // Execute the query in MongoDB
+    const apps = await Application.find(query);
+
+    // Return the search results with any validation warnings
+    res.status(200).json({
+      message: "Search completed successfully",
+      count: apps.length,
+      applications: apps,
+      ...(validationWarnings.length > 0 && { warnings: validationWarnings }),
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to search applications",
+      details: err.message,
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/v2/apps/initialize:
  *   post:
  *     summary: Initialize applications with sample data (Development only)

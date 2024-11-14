@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
 const { createInitialUser } = require("../seeds/createUser");
-const bcrypt = require('bcryptjs');
+const generateToken = require("../config/generateToken");
+const { protect } = require("../middleware/authMiddleware");
+const { authorize } = require("../middleware/authorizeMiddleware");
 
 /**
  * @swagger
@@ -25,58 +27,44 @@ const bcrypt = require('bcryptjs');
  *         description: Invalid input data
  */
 router.post("/users", async (req, res) => {
-  try {
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: req.body.email });
-    if (existingUser) {
-      return res
-        .status(409)
-        .send({ error: "User with this email already exists" });
-    }
+	try {
+		const { name, email, password, role = "user" } = req.body;
 
-    const user = new User(req.body);
-    const savedUser = await user.save();
-    res.status(201).send(savedUser);
-  } catch (error) {
-    res.status(400).send({ error: error.message });
-  }
-});
+		if (!name || !email || !password) {
+			res.status(400);
+			throw new Error("Please Enter all the fields");
+		}
+		// Check if user already exists
+		const existingUser = await User.findOne({ email });
+		if (existingUser) {
+			return res
+				.status(409)
+				.send({ error: "User with this email already exists" });
+		}
 
-// Create initial admin user (for testing/seeding)
-router.post("/users/seed", async (req, res) => {
-  console.log("I am seeding the user");
-  try {
-    if (!User || !User.prototype.save) {
-      console.error("User model not properly imported");
-      return res.status(500).send({ error: "User model not properly configured" });
-    }
-
-    const {name,email,password,age} = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).send({ error: "Required fields are missing" });
-    }
-
-    const user = new User({
-      name,
-      email,
-      password,
-      age
-    });
-
-    const savedUser = await user.save();
-    
-    if (!savedUser) {
-      return res.status(400).send({ error: "Failed to save user" });
-    }
-    
-    res.status(201).send(savedUser);
-  } catch (error) {
-    console.error("Error seeding user:", error);
-    res.status(400).send({ 
-      error: error.message || "Failed to create user"
-    });
-  }
+		const user = new User({
+			name,
+			email,
+			password,
+			role,
+		});
+		const savedUser = await user.save();
+		if (savedUser) {
+			res.status(201).send({
+				_id: savedUser._id,
+				name: savedUser.name,
+				email: savedUser.email,
+				token: generateToken(savedUser._id),
+				role: savedUser.role,
+				status: savedUser.status,
+			});
+		}
+	} catch (error) {
+		res.status(400).send({
+			error: "Failed to create user",
+			details: error.message,
+		});
+	}
 });
 
 /**
@@ -100,19 +88,19 @@ router.post("/users/seed", async (req, res) => {
  *                   items:
  *                     $ref: '#/components/schemas/User'
  */
-router.get("/users", async (req, res) => {
-  try {
-    const users = await User.find({}).select("-password");
-    res.status(200).send({
-      count: users.length,
-      users,
-    });
-  } catch (error) {
-    res.status(500).send({
-      error: "Failed to fetch users",
-      details: error.message,
-    });
-  }
+router.get("/users", protect, authorize("admin"), async (req, res) => {
+	try {
+		const users = await User.find({}).select("-password");
+		res.status(200).send({
+			count: users.length,
+			users,
+		});
+	} catch (error) {
+		res.status(500).send({
+			error: "Failed to fetch users",
+			details: error.message,
+		});
+	}
 });
 
 /**
@@ -138,20 +126,20 @@ router.get("/users", async (req, res) => {
  *         description: User not found
  */
 router.get("/users/:email", async (req, res) => {
-  try {
-    const user = await User.findOne({ email: req.params.email }).select(
-      "-password"
-    );
-    if (!user) {
-      return res.status(404).send({ error: "User not found" });
-    }
-    res.status(200).send(user);
-  } catch (error) {
-    res.status(500).send({
-      error: "Failed to fetch user",
-      details: error.message,
-    });
-  }
+	try {
+		const user = await User.findOne({ email: req.params.email }).select(
+			"-password"
+		);
+		if (!user) {
+			return res.status(404).send({ error: "User not found" });
+		}
+		res.status(200).send(user);
+	} catch (error) {
+		res.status(500).send({
+			error: "Failed to fetch user",
+			details: error.message,
+		});
+	}
 });
 
 /**
@@ -185,42 +173,42 @@ router.get("/users/:email", async (req, res) => {
  *         description: User not found
  */
 router.patch("/users/:email", async (req, res) => {
-  const updates = Object.keys(req.body);
-  const allowedUpdates = ["name", "password", "age"];
-  const isValidOperation = updates.every((update) =>
-    allowedUpdates.includes(update)
-  );
+	const updates = Object.keys(req.body);
+	const allowedUpdates = ["name", "password", "age", "status"];
+	const isValidOperation = updates.every((update) =>
+		allowedUpdates.includes(update)
+	);
 
-  if (!isValidOperation) {
-    return res.status(400).send({
-      error: "Invalid updates",
-      allowedUpdates,
-    });
-  }
+	if (!isValidOperation) {
+		return res.status(400).send({
+			error: "Invalid updates",
+			allowedUpdates,
+		});
+	}
 
-  try {
-    const user = await User.findOne({ email: req.params.email });
-    if (!user) {
-      return res.status(404).send({ error: "User not found" });
-    }
+	try {
+		const user = await User.findOne({ email: req.params.email });
+		if (!user) {
+			return res.status(404).send({ error: "User not found" });
+		}
 
-    updates.forEach((update) => (user[update] = req.body[update]));
-    await user.save();
+		updates.forEach((update) => (user[update] = req.body[update]));
+		await user.save();
 
-    // Return user without password
-    const userResponse = user.toObject();
-    delete userResponse.password;
+		// Return user without password
+		const userResponse = user.toObject();
+		delete userResponse.password;
 
-    res.status(200).send({
-      message: "User updated successfully",
-      user: userResponse,
-    });
-  } catch (error) {
-    res.status(400).send({
-      error: "Failed to update user",
-      details: error.message,
-    });
-  }
+		res.status(200).send({
+			message: "User updated successfully",
+			user: userResponse,
+		});
+	} catch (error) {
+		res.status(400).send({
+			error: "Failed to update user",
+			details: error.message,
+		});
+	}
 });
 
 /**
@@ -242,25 +230,25 @@ router.patch("/users/:email", async (req, res) => {
  *         description: User not found
  */
 router.delete("/users/:email", async (req, res) => {
-  try {
-    const user = await User.findOneAndDelete({ email: req.params.email });
-    if (!user) {
-      return res.status(404).send({ error: "User not found" });
-    }
-    res.status(200).send({
-      message: "User deleted successfully",
-      user: {
-        name: user.name,
-        email: user.email,
-        age: user.age,
-      },
-    });
-  } catch (error) {
-    res.status(500).send({
-      error: "Failed to delete user",
-      details: error.message,
-    });
-  }
+	try {
+		const user = await User.findOneAndDelete({ email: req.params.email });
+		if (!user) {
+			return res.status(404).send({ error: "User not found" });
+		}
+		res.status(200).send({
+			message: "User deleted successfully",
+			user: {
+				name: user.name,
+				email: user.email,
+				age: user.age,
+			},
+		});
+	} catch (error) {
+		res.status(500).send({
+			error: "Failed to delete user",
+			details: error.message,
+		});
+	}
 });
 
 /**
@@ -276,24 +264,106 @@ router.delete("/users/:email", async (req, res) => {
  *         description: Not available in production
  */
 router.post("/users/initialize", async (req, res) => {
-  try {
-    if (process.env.NODE_ENV === "production") {
-      return res.status(403).send({
-        error: "This endpoint is not available in production",
-      });
-    }
+	try {
+		if (process.env.NODE_ENV === "production") {
+			return res.status(403).send({
+				error: "This endpoint is not available in production",
+			});
+		}
 
-    await createInitialUser();
+		await createInitialUser();
 
-    res.status(201).send({
-      message: "Users initialized successfully",
-    });
-  } catch (error) {
-    res.status(400).send({
-      error: "Failed to initialize users",
-      details: error.message,
-    });
-  }
+		res.status(201).send({
+			message: "Users initialized successfully",
+		});
+	} catch (error) {
+		res.status(400).send({
+			error: "Failed to initialize users",
+			details: error.message,
+		});
+	}
 });
+
+/**
+ * @swagger
+ * /v1/users/approve:
+ * patch:
+ * summary: Approve or reject a user's account
+ * tags: [Users]
+ * requestBody:
+ *   required: true
+ *   content:
+ *     application/json:
+ *       schema:
+ *         type: object
+ *         properties:
+ *           email:
+ *             type: string
+ *             required: true
+ *           approval:
+ *             type: string
+ *             enum: [accepted, rejected]
+ *             required: true
+ * responses:
+ *   200:
+ *     description: User status updated successfully
+ *   404:
+ *     description: User not found
+ */
+router.patch(
+	"/users-approve",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		const { email, approval } = req.body;
+
+		if (!email || !approval) {
+			return res
+				.status(400)
+				.send({ error: "Email and approval status are required" });
+		}
+
+		try {
+			// Find the user by email
+			const user = await User.findOne({ email });
+
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
+
+			if (approval === "accepted") {
+				// If approval is "accepted", set status to "active"
+				user.status = "active";
+				await user.save();
+
+				return res.status(200).send({
+					message: "User approved and activated successfully",
+					user: {
+						name: user.name,
+						email: user.email,
+						status: user.status,
+					},
+				});
+			} else if (approval === "rejected") {
+				// If approval is "rejected", delete the user
+				await User.findOneAndDelete({ email });
+
+				return res.status(200).send({
+					message: "User rejected and deleted successfully",
+					user: { name: user.name, email: user.email },
+				});
+			} else {
+				return res
+					.status(400)
+					.send({ error: "Invalid approval value" });
+			}
+		} catch (error) {
+			return res.status(500).send({
+				error: "Failed to process request",
+				details: error.message,
+			});
+		}
+	}
+);
 
 module.exports = router;

@@ -1,27 +1,46 @@
 const express = require("express");
-const { connectMongoDB } = require("./config/database");
-const testRoutes = require("./routes/test");
+const env = require("./config/environment");
+const { connectMongoDB } = require("./database/mongo");
+const { createInitialUser } = require("./seeds/createUser");
+const { createInitialApplications } = require("./seeds/createApplication");
 const userRoutes = require("./routes/user");
+const healthRoutes = require("./routes/health");
+const applicationRoutes = require("./routes/application");
 
 const app = express();
-const port = process.env.PORT || "8080";
 
-// Connect to MongoDB when app starts
+// Middleware
+app.use(express.json());
+
+// Import Swagger setup (after middleware)
+require("./config/swagger")(app);
+
+// Routes
+app.use("/v1", healthRoutes);
+app.use("/v1", userRoutes);
+app.use("/api", applicationRoutes);
+
 const startServer = async () => {
   try {
     await connectMongoDB();
-    console.log("Connected to MongoDB");
+    console.log(`Connected to MongoDB in ${env.NODE_ENV} mode`);
 
-    // Middleware
-    app.use(express.json());
-
-    // Routes
-    app.use("/v1", testRoutes);
-    app.use("/v1", userRoutes);
+    // Initialize data in development
+    if (env.isDevelopment()) {
+      console.log("Initializing development data...");
+      await Promise.all([
+        createInitialUser().then(() => console.log("Users initialized")),
+        createInitialApplications().then(() =>
+          console.log("Applications initialized")
+        ),
+      ]);
+    }
 
     // Start server
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
+    app.listen(env.PORT, () => {
+      console.log(
+        `Server is running on port ${env.PORT} in ${env.NODE_ENV} mode`
+      );
     });
   } catch (error) {
     console.error("Failed to start server:", error);

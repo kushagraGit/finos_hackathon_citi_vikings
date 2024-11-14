@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const IntentSchema = require("./intent");
 
 const ApplicationSchema = new mongoose.Schema(
   {
@@ -121,6 +122,7 @@ const ApplicationSchema = new mongoose.Schema(
         },
       },
     },
+    intents: [IntentSchema],
   },
   {
     timestamps: true,

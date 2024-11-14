@@ -205,6 +205,7 @@ router.patch("/v2/apps/:appId", async (req, res) => {
       "moreInfo",
       "publisher",
       "details",
+      "intents",
     ];
     const isValidOperation = updates.every((update) =>
       allowedUpdates.includes(update)
@@ -354,7 +355,7 @@ router.delete("/v2/apps/:appId", async (req, res) => {
  *                 details:
  *                   type: string
  */
-router.post("/v2/apps/search", async (req, res) => {
+router.post("/v1/apps/search", async (req, res) => {
   try {
     const { appId, version, title, description, categories } = req.body;
     const query = {};
@@ -521,6 +522,38 @@ router.post("/v2/apps/initialize", async (req, res) => {
     res.status(500).json({
       error: "Failed to initialize applications",
       details: error.message,
+    });
+  }
+});
+
+// Add a new endpoint to search by specific intent
+router.get("/v2/apps/intents/:intentName", async (req, res) => {
+  try {
+    const { intentName } = req.params;
+    const { contexts } = req.query;
+
+    const query = {
+      "intents.name": { $regex: intentName, $options: "i" },
+    };
+
+    if (contexts) {
+      const contextList = contexts.split(",").map((c) => c.trim());
+      if (contextList.length > 0) {
+        query["intents.contexts"] = { $in: contextList };
+      }
+    }
+
+    const apps = await Application.find(query);
+
+    res.status(200).json({
+      message: "Search completed successfully",
+      count: apps.length,
+      applications: apps,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to search applications by intent",
+      details: err.message,
     });
   }
 });

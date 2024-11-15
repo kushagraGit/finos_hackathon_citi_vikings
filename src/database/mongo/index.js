@@ -1,7 +1,3 @@
-const mongoConnection = require("./connection");
+const MongoDatabase = require("./mongoDatabase");
 
-module.exports = {
-  connectMongoDB: () => mongoConnection.connect(),
-  disconnectMongoDB: () => mongoConnection.disconnect(),
-  isMongoConnected: () => mongoConnection.isConnected(),
-};
+module.exports = MongoDatabase;

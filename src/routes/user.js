@@ -393,7 +393,7 @@ router.patch(
  *             properties:
  *               email:
  *                 type: string
- *                 example: "user123"
+ *                 example: "user123@gmail.com"
  *               password:
  *                 type: string
  *                 example: "password123"
@@ -408,9 +408,12 @@ router.patch(
  *                 _id:
  *                   type: string
  *                   example: "60b8d295f8d4bc001c8e4f9c"
- *                 email:
+ *                 name:
  *                   type: string
  *                   example: "user123"
+ * 								 role:
+ *                   type: string
+ *                   example: "user"
  *                 token:
  *                   type: string
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -439,7 +442,9 @@ router.post("/users/login", async (req, res) => {
 
 		// Return user object and token (excluding password)
 		res.status(200).json({
-			user,
+			_id: user._id,
+			name: user.name,
+			role: user.role,
 			token,
 		});
 	} catch (error) {

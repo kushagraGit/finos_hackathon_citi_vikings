@@ -425,132 +425,132 @@ router.delete(
  *                 details:
  *                   type: string
  */
-router.post("/v1/apps/search", protect, async (req, res) => {
-	try {
-		const { appId, version, title, description, categories } = req.body;
-		let searchQueries = [];
-		const validationWarnings = [];
+router.post("/v2/apps/search", protect, async (req, res) => {
+  try {
+    const { appId, version, title, description, categories } = req.body;
+    const searchQueries = [];
+    const validationWarnings = [];
 
-		// Build individual search criteria
-		if (appId) {
-			if (typeof appId === "string" && appId.trim().length > 0) {
-				searchQueries.push({
-					appId: { $regex: appId.trim(), $options: "i" },
-				});
-			} else {
-				validationWarnings.push(
-					"Invalid appId format - ignoring this criteria"
-				);
-			}
-		}
+    // Validate and build query for appId
+    if (appId !== undefined) {
+      if (typeof appId === "string" && appId.trim().length > 0) {
+        searchQueries.push({
+          appId: { $regex: appId.trim(), $options: "i" },
+        });
+      } else {
+        validationWarnings.push(
+          "Invalid appId provided - ignoring this criteria"
+        );
+      }
+    }
 
-		if (version) {
-			if (typeof version === "string" && version.trim().length > 0) {
-				searchQueries.push({
-					version: {
-						$regex: version.trim().replace(/\./g, "\\."),
-						$options: "i",
-					},
-				});
-			} else {
-				validationWarnings.push(
-					"Invalid version format - ignoring this criteria"
-				);
-			}
-		}
+    // Validate and build query for version
+    if (version !== undefined) {
+      if (typeof version === "string" && version.trim().length > 0) {
+        searchQueries.push({
+          version: {
+            $regex: version.trim().replace(/\./g, "\\."),
+            $options: "i",
+          },
+        });
+        if (!/^\d+(\.\d+)*$/.test(version.trim())) {
+          validationWarnings.push(
+            "Version format warning: partial match will be used"
+          );
+        }
+      } else {
+        validationWarnings.push(
+          "Invalid version format - ignoring this criteria"
+        );
+      }
+    }
 
-		if (title) {
-			if (typeof title === "string" && title.trim().length > 0) {
-				searchQueries.push({
-					title: { $regex: title.trim(), $options: "i" },
-				});
-			} else {
-				validationWarnings.push(
-					"Invalid title format - ignoring this criteria"
-				);
-			}
-		}
+    // Validate and build query for title
+    if (title !== undefined) {
+      if (typeof title === "string" && title.trim().length > 0) {
+        searchQueries.push({
+          title: { $regex: title.trim(), $options: "i" },
+        });
+      } else {
+        validationWarnings.push(
+          "Invalid title provided - ignoring this criteria"
+        );
+      }
+    }
 
-		if (description) {
-			if (
-				typeof description === "string" &&
-				description.trim().length > 0
-			) {
-				searchQueries.push({
-					description: { $regex: description.trim(), $options: "i" },
-				});
-			} else {
-				validationWarnings.push(
-					"Invalid description format - ignoring this criteria"
-				);
-			}
-		}
+    // Validate and build query for description
+    if (description !== undefined) {
+      if (typeof description === "string" && description.trim().length > 0) {
+        searchQueries.push({
+          description: { $regex: description.trim(), $options: "i" },
+        });
+      } else {
+        validationWarnings.push(
+          "Invalid description provided - ignoring this criteria"
+        );
+      }
+    }
 
-		if (categories) {
-			if (Array.isArray(categories) && categories.length > 0) {
-				const validCategories = categories
-					.filter(
-						(cat) =>
-							typeof cat === "string" && cat.trim().length > 0
-					)
-					.map((cat) => new RegExp(cat.trim(), "i"));
+    // Validate and build query for categories
+    if (categories !== undefined) {
+      if (Array.isArray(categories) && categories.length > 0) {
+        const validCategories = categories
+          .filter((cat) => typeof cat === "string" && cat.trim().length > 0)
+          .map((cat) => new RegExp(cat.trim(), "i"));
 
-				if (validCategories.length > 0) {
-					searchQueries.push({
-						categories: { $in: validCategories },
-					});
-				} else {
-					validationWarnings.push(
-						"No valid categories provided - ignoring this criteria"
-					);
-				}
-			} else {
-				validationWarnings.push(
-					"Invalid categories format - ignoring this criteria"
-				);
-			}
-		}
+        if (validCategories.length > 0) {
+          searchQueries.push({
+            categories: { $in: validCategories },
+          });
+        } else {
+          validationWarnings.push(
+            "No valid categories provided - ignoring this criteria"
+          );
+        }
+      } else {
+        validationWarnings.push(
+          "Invalid categories format - ignoring this criteria"
+        );
+      }
+    }
 
-		// If no valid search criteria provided
-		if (searchQueries.length === 0) {
-			return res.status(400).json({
-				error: "No valid search criteria provided",
-				details: "Please provide at least one valid search parameter",
-				validationWarnings,
-			});
-		}
+    // Check if any valid search criteria remain
+    if (searchQueries.length === 0) {
+      return res.status(400).json({
+        error: "No valid search criteria provided",
+        details: "Please provide at least one valid search parameter",
+        validationWarnings,
+      });
+    }
 
-		// Perform search using $or to get union of all results
-		const apps = await Application.find({
-			$or: searchQueries,
-		});
+    // Execute the query using dbOrchestrator with $or operator
+    const query = { $or: searchQueries };
+    const apps = await dbOrchestrator.find("Application", query);
 
-		// Remove duplicates (if any) based on appId
-		const uniqueApps = Array.from(
-			new Map(apps.map((app) => [app.appId, app])).values()
-		);
+    // Remove duplicates based on appId if needed
+    const uniqueApps = Array.from(
+      new Map(apps.map((app) => [app.appId, app])).values()
+    );
 
-		res.status(200).json({
-			message: "Search completed successfully",
-			count: uniqueApps.length,
-			applications: uniqueApps,
-			...(validationWarnings.length > 0 && {
-				warnings: validationWarnings,
-			}),
-			searchCriteria: {
-				appId,
-				version,
-				title,
-				description,
-				categories,
-			},
-		});
-	} catch (err) {
-		res.status(500).json({
-			error: "Failed to search applications",
-			details: err.message,
-		});
-	}
+    res.status(200).json({
+      message: "Search completed successfully",
+      count: uniqueApps.length,
+      applications: uniqueApps.map((app) => new Application(app).toJSON()),
+      ...(validationWarnings.length > 0 && { warnings: validationWarnings }),
+      searchCriteria: {
+        appId,
+        version,
+        title,
+        description,
+        categories,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to search applications",
+      details: err.message,
+    });
+  }
 });
 
 /**
@@ -813,46 +813,46 @@ router.patch(
  *                   type: string
  */
 router.get("/v2/apps/:appId/versions", protect, async (req, res) => {
-	try {
-		const { appId } = req.params;
+  try {
+    const { appId } = req.params;
 
-		// Find all applications with the given appId
-		const applications = await Application.find({ appId }).sort({
-			version: -1,
-		}); // Sort by version in descending order
+    // Find all applications with the given appId
+    const applications = await Application.find({ appId }).sort({
+      version: -1,
+    }); // Sort by version in descending order
 
-		if (!applications || applications.length === 0) {
-			return res.status(404).json({
-				error: "No versions found for this application",
-			});
-		}
+    if (!applications || applications.length === 0) {
+      return res.status(404).json({
+        error: "No versions found for this application",
+      });
+    }
 
-		// Extract basic info from the latest version
-		const latestVersion = applications[0];
-		const basicInfo = {
-			appId: latestVersion.appId,
-			title: latestVersion.title,
-			publisher: latestVersion.publisher,
-			description: latestVersion.description,
-		};
+    // Extract basic info from the latest version
+    const latestVersion = applications[0];
+    const basicInfo = {
+      appId: latestVersion.appId,
+      title: latestVersion.title,
+      publisher: latestVersion.publisher,
+      description: latestVersion.description,
+    };
 
-		res.status(200).json({
-			message: "Versions retrieved successfully",
-			...basicInfo,
-			count: applications.length,
-			versions: applications.map((app) => ({
-				version: app.version,
-				status: app.status,
-				updatedAt: app.updatedAt,
-				createdAt: app.createdAt,
-				_id: app._id,
-			})),
-		});
-	} catch (err) {
-		res.status(500).json({
-			error: "Failed to fetch application versions",
-			details: err.message,
-		});
-	}
+    res.status(200).json({
+      message: "Versions retrieved successfully",
+      ...basicInfo,
+      count: applications.length,
+      versions: applications.map((app) => ({
+        version: app.version,
+        status: app.status,
+        updatedAt: app.updatedAt,
+        createdAt: app.createdAt,
+        _id: app._id,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: "Failed to fetch application versions",
+      details: err.message,
+    });
+  }
 });
 module.exports = router;

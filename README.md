@@ -130,6 +130,12 @@ npm run dev
 npm start
 ```
 
+### Steps to generate a public-private key pair
+```
+openssl genpkey -algorithm RSA -out private.key -pkeyopt rsa_keygen_bits:2048
+openssl rsa -pubout -in private.key -out public.key
+```
+
 ## API Documentation
 
 Access the Swagger documentation at:
@@ -285,7 +291,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contact
 
 -   Project Maintainer: Vishal Gautam, Yousuf Ejaz Ahmad, Kushagra Asthana
--   Email: <Vishalgautam.tech@gmail.com>, <ejazahmadyousuf2@gmail.com>, <kushagra.asthana@gmail.com>
+-   Email: <Vishalgautam.tech@gmail.com>, <ejazahmadyousuf2@gmail.com>, <kushagra661@gmail.com>
 
 ## Acknowledgments
 

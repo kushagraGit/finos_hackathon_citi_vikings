@@ -429,9 +429,9 @@ router.patch(
  *           schema:
  *             type: object
  *             properties:
- *               name:
+ *               email:
  *                 type: string
- *                 example: "user123"
+ *                 example: "user123@gmail.com"
  *               password:
  *                 type: string
  *                 example: "password123"
@@ -449,31 +449,30 @@ router.patch(
  *                 name:
  *                   type: string
  *                   example: "user123"
+ * 								 role:
+ *                   type: string
+ *                   example: "user"
  *                 token:
  *                   type: string
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *       400:
- *         description: Invalid name or password
+ *         description: Invalid email or password
  */
 
 router.post("/users/login", async (req, res) => {
-	const { name, password } = req.body;
+	const { email, password } = req.body;
 
 	try {
-		// Check if user exists by name
-		const user = await User.findOne({ name });
+		// Check if user exists by email
+		const user = await User.findOne({ email });
 		if (!user) {
-			return res
-				.status(400)
-				.json({ error: "Invalid name or password" });
+			return res.status(400).json({ error: "Invalid email or password" });
 		}
 
 		// Compare provided password with stored hashed password
 		const isMatch = await bcrypt.compare(password, user.password);
 		if (!isMatch) {
-			return res
-				.status(400)
-				.json({ error: "Invalid name or password" });
+			return res.status(400).json({ error: "Invalid email or password" });
 		}
 
 		// Generate JWT token for the user
@@ -481,7 +480,9 @@ router.post("/users/login", async (req, res) => {
 
 		// Return user object and token (excluding password)
 		res.status(200).json({
-			user,
+			_id: user._id,
+			name: user.name,
+			role: user.role,
 			token,
 		});
 	} catch (error) {

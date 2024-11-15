@@ -34,9 +34,9 @@ const startServer = async () => {
       console.log("Initializing development data...");
       await Promise.all([
         createInitialUser().then(() => console.log("Users initialized")),
-        createInitialApplications().then(() =>
-          console.log("Applications initialized")
-        ),
+        // createInitialApplications().then(() =>
+        //   console.log("Applications initialized")
+        // ),
       ]);
     }
 

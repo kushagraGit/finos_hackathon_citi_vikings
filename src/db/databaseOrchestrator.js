@@ -1,5 +1,5 @@
 const environment = require("../config/environment");
-const MongoDatabase = require("./mongo/MongoDatabase");
+const MongoDatabase = require("../database/mongo/mongoDatabase");
 // const PostgresDatabase = require("./postgres/PostgresDatabase"); // Future implementation
 // const OracleDatabase = require("./oracle/OracleDatabase"); // Future implementation
 
@@ -33,6 +33,7 @@ class DatabaseOrchestrator {
     return this.dbInstance;
   }
 
+  // Connection Management
   async connect() {
     const instance = this.getInstance();
     await instance.connect();
@@ -48,6 +49,7 @@ class DatabaseOrchestrator {
     return await instance.checkHealth();
   }
 
+  // Basic CRUD Operations
   async create(collection, data) {
     const instance = this.getInstance();
     return await instance.create(collection, data);
@@ -66,6 +68,76 @@ class DatabaseOrchestrator {
   async deleteById(collection, id) {
     const instance = this.getInstance();
     return await instance.deleteById(collection, id);
+  }
+
+  // Additional Query Operations
+  async findOne(collection, query, projection = {}) {
+    const instance = this.getInstance();
+    return await instance.findOne(collection, query, projection);
+  }
+
+  async find(collection, query = {}, projection = {}) {
+    const instance = this.getInstance();
+    return await instance.find(collection, query, projection);
+  }
+
+  async findOneAndUpdate(collection, query, updateData, options = {}) {
+    const instance = this.getInstance();
+    return await instance.findOneAndUpdate(
+      collection,
+      query,
+      updateData,
+      options
+    );
+  }
+
+  async findOneAndDelete(collection, query) {
+    const instance = this.getInstance();
+    return await instance.findOneAndDelete(collection, query);
+  }
+
+  // Bulk Operations
+  async insertMany(collection, documents) {
+    const instance = this.getInstance();
+    return await instance.insertMany(collection, documents);
+  }
+
+  async updateMany(collection, query, updateData) {
+    const instance = this.getInstance();
+    return await instance.updateMany(collection, query, updateData);
+  }
+
+  async deleteMany(collection, query) {
+    const instance = this.getInstance();
+    return await instance.deleteMany(collection, query);
+  }
+
+  // Aggregation Operations
+  async aggregate(collection, pipeline) {
+    const instance = this.getInstance();
+    return await instance.aggregate(collection, pipeline);
+  }
+
+  // Count Operations
+  async count(collection, query = {}) {
+    const instance = this.getInstance();
+    return await instance.count(collection, query);
+  }
+
+  // Transaction Support
+  async startTransaction() {
+    const instance = this.getInstance();
+    return await instance.startTransaction();
+  }
+
+  async commitTransaction() {
+    const instance = this.getInstance();
+    return await instance.commitTransaction();
+  }
+
+  async abortTransaction() {
+    const instance = this.getInstance();
+    return await instance.abortTransaction();
   }
 }
 

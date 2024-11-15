@@ -15,7 +15,7 @@
                   </div>
                 </div>
                 <div class="col text-right">
-                  <span class="mr-3" id="userInfo">Welcome, <strong id="loggedInUser">${user ? user.name : 'Loading...'}</strong></span>
+                  <span class="mr-3" id="userInfo">Welcome, <strong id="loggedInUser">Loading...</strong></span>
                   <button onclick="logout()" class="btn btn-sm btn-danger mr-2">
                     <i class="fas fa-sign-out-alt mr-1"></i>Logout
                   </button>
@@ -97,97 +97,118 @@
       }
     }
 
-    // Move renderUsers to global scope as well
+    // Replace the existing renderUsers function with this updated version
+    async function fetchUserData() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return null;
+
+            // First get the user data from the token
+            const tokenData = JSON.parse(atob(token.split('.')[1]));
+            const userId = tokenData.id; // JWT token contains user ID
+
+            // Then fetch the full user data using the ID
+            const response = await fetch(`/v1/users/id/${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                }
+                return null;
+            }
+
+            const userData = await response.json();
+            document.getElementById('loggedInUser').textContent = userData.name;
+            return userData;
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            return null;
+        }
+    }
+
+    // Update the renderUsers function to remove the user name fetching logic
     function renderUsers(users) {
-      const tbody = document.getElementById('userTableBody');
-      if (!tbody) return;
+        const tbody = document.getElementById('userTableBody');
+        if (!tbody) return;
 
-      // Update welcome message with the first user's name (assuming it's the logged-in user)
-      if (users && users.length > 0) {
-        const loggedInUser = users.find(user => user.status === 'active');
-        if (loggedInUser) {
-          document.getElementById('loggedInUser').textContent = loggedInUser.name;
-        }
-      }
-
-      tbody.innerHTML = users.map(user => {
-        // Determine button properties based on status
-        let buttonProps = {
-          text: 'No Action',
-          class: 'btn-secondary',
-          action: '',
-          show: false,
-          showId: false
-        };
-
-        switch (user.status) {
-          case 'inactive':
-            buttonProps = {
-              text: 'Approve',
-              class: 'btn-success',
-              action: `approveUser('${user._id}')`,
-              show: true,
-              showId: false
+        tbody.innerHTML = users.map(user => {
+            // Determine button properties based on status
+            let buttonProps = {
+                text: 'No Action',
+                class: 'btn-secondary',
+                action: '',
+                show: false,
+                showId: false
             };
-            break;
-          case 'active':
-            buttonProps = {
-              text: 'Reject',
-              class: 'btn-danger',
-              action: `rejectUser('${user._id}')`,
-              show: true,
-              showId: true
-            };
-            break;
-        }
 
-        return `
-            <tr id="row-${user._id}">
-                <td>
-                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'email')">${user.email}</span>
-                </td>
-                <td>
-                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'name')">${user.name}</span>
-                </td>
-                <td>
-                    <div class="editable-select" onclick="makeSelectEditable(this, '${user._id}', 'role')">
-                        <select class="form-control form-control-sm" onchange="updateUserField('${user._id}', 'role', this.value)">
-                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
-                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                            <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editor</option>
-                        </select>
-                    </div>
-                </td>
-                <td>
-                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'age')">${user.age || 'N/A'}</span>
-                </td>
-                <td>
-                    <span class="badge badge-${user.status === 'active' ? 'success' : user.status === 'pending' ? 'warning' : 'danger'}">
-                        ${user.status}
-                    </span>
-                </td>
-                <td>
-                    <div class="d-flex align-items-center">
-                        ${buttonProps.show ? 
-                            `<button class="btn btn-sm ${buttonProps.class}" onclick="${buttonProps.action}">
-                                ${buttonProps.text}
-                            </button>` : ''
-                        }
-                        ${buttonProps.showId ? 
-                            `<div class="d-flex align-items-center ml-2">
-                                <small class="text-muted">${user._id}</small>
-                                <button class="btn btn-sm btn-link ml-1" 
-                                        onclick="copyToClipboard('${user._id}')"
-                                        title="Copy ID">
-                                    <i class="fas fa-copy"></i>
+            switch (user.status) {
+                case 'inactive':
+                    buttonProps = {
+                        text: 'Approve',
+                        class: 'btn-success',
+                        action: `approveUser('${user._id}')`,
+                        show: true,
+                        showId: false
+                    };
+                    break;
+                case 'active':
+                    buttonProps = {
+                        text: 'Reject',
+                        class: 'btn-danger',
+                        action: `rejectUser('${user._id}')`,
+                        show: true,
+                        showId: true
+                    };
+                    break;
+            }
+
+            return `
+                    <tr>
+                        
+                        <td>${user.email}</td>
+                        <td>${user.name}</td>
+                        <td>${user.role}</td>
+                        <td>${user.age}</td>
+                        <td>
+                            <span class="badge badge-${user.status === 'active' ? 'success' :
+                user.status === 'pending' ? 'warning' :
+                  'danger'
+              }">
+                                ${user.status}
+                            </span>
+                        </td>
+                        <td>
+                            ${buttonProps.show ?
+                `<div class="d-flex align-items-center">
+                                <button class="btn btn-sm ${buttonProps.class}" 
+                                        onclick="${buttonProps.action}">
+                                    ${buttonProps.text}
                                 </button>
-                            </div>` : ''
-                        }
-                    </div>
-                </td>
-            </tr>
-        `;
-      }).join('');
+                                ${buttonProps.showId ? 
+                                    `<div class="d-flex align-items-center ml-2">
+                                        <small class="text-muted">${user._id}</small>
+                                        <button class="btn btn-sm btn-link ml-1" 
+                                                onclick="copyToClipboard('${user._id}')"
+                                                title="Copy ID">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>` 
+                                    : ''
+                                }
+                            </div>`
+                : ''
+              }
+                        </td>
+                    </tr>
+                `;
+        }).join('');
     }
 
     // Keep existing global functions
@@ -314,15 +335,16 @@
     }
 
     // Update the DOMContentLoaded event listener
-    document.addEventListener('DOMContentLoaded', function () {
-      // Display logged in user
-      const user = getLoggedInUser();
-      if (user) {
-        document.getElementById('loggedInUser').textContent = user.name || 'User';
-      }
-
-      // Start fetching users
-      fetchUsers();
+    document.addEventListener('DOMContentLoaded', async function () {
+        if (!checkAuthorization()) return;
+        
+        const userData = await fetchUserData();
+        if (userData) {
+            // Start fetching users list
+            fetchUsers();
+        } else {
+            window.location.href = '/login';
+        }
     });
 
     // Add this function to handle copying to clipboard
@@ -347,96 +369,5 @@
             window.location.href = '/apps';
         }
     }
-
-    // Add these new functions for editing
-    function makeEditable(element, userId, field) {
-        const currentValue = element.textContent;
-        let inputType = 'text';
-        
-        // Determine input type based on field
-        if (field === 'age') {
-            inputType = 'number';
-        } else if (field === 'email') {
-            inputType = 'email';
-        }
-
-        element.innerHTML = `
-            <input type="${inputType}" 
-                   class="form-control form-control-sm" 
-                   value="${currentValue}"
-                   onblur="updateUserField('${userId}', '${field}', this.value)"
-                   onkeypress="if(event.key === 'Enter') this.blur()">
-        `;
-        element.querySelector('input').focus();
-    }
-
-    async function updateUserField(userId, field, value) {
-        try {
-            const token = localStorage.getItem('token');
-            const user = await getUserById(userId);
-            
-            const response = await fetch(`/v1/users/${user.email}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    [field]: field === 'age' ? parseInt(value) : value
-                })
-            });
-
-            if (response.ok) {
-                showSuccess(`User ${field} updated successfully`);
-                fetchUsers(); // Refresh the table
-            } else {
-                const data = await response.json();
-                showError(data.error || `Failed to update user ${field}`);
-            }
-        } catch (error) {
-            console.error(`Error updating user ${field}:`, error);
-            showError(`Failed to update user ${field}`);
-        }
-    }
-
-    // Add function to handle select fields
-    function makeSelectEditable(element, userId, field) {
-        const select = element.querySelector('select');
-        select.focus();
-    }
-
-    // Update the CSS for better visual feedback
-    const style = document.createElement('style');
-    style.textContent = `
-        .editable {
-            cursor: pointer;
-            padding: 2px 5px;
-            border-radius: 3px;
-            transition: background-color 0.2s;
-        }
-        .editable:hover {
-            background-color: #f8f9fa;
-        }
-        .editable::after {
-            content: '✎';
-            margin-left: 5px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .editable:hover::after {
-            opacity: 0.5;
-        }
-        .editable-select {
-            cursor: pointer;
-        }
-        .form-control-sm {
-            height: calc(1.5em + 0.5rem + 2px);
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
-            line-height: 1.5;
-            border-radius: 0.2rem;
-        }
-    `;
-    document.head.appendChild(style);
   </script>
 </body>

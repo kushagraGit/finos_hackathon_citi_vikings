@@ -8,35 +8,6 @@ const { authorize } = require("../middleware/authorizeMiddleware");
 const bcrypt = require("bcryptjs");
 /**
  * @swagger
- * components:
- *   schemas:
- *     User:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *         name:
- *           type: string
- *         email:
- *           type: string
- *           format: email
- *         role:
- *           type: string
- *           enum: [user, admin, editor]
- *         status:
- *           type: string
- *           enum: [active, inactive, pending]
- *         age:
- *           type: number
- *   securitySchemes:
- *     BearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
-
-/**
- * @swagger
  * /v1/users:
  *   post:
  *     summary: Create a new user
@@ -46,53 +17,62 @@ const bcrypt = require("bcryptjs");
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - email
- *               - password
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *               role:
- *                 type: string
- *                 enum: [user, admin, editor]
- *                 default: user
+ *             $ref: '#/components/schemas/User'
  *     responses:
  *       201:
  *         description: User created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 _id:
- *                   type: string
- *                 name:
- *                   type: string
- *                 email:
- *                   type: string
- *                 token:
- *                   type: string
- *                 role:
- *                   type: string
- *                 status:
- *                   type: string
  *       409:
  *         description: User already exists
  *       400:
  *         description: Invalid input data
- * 
+ */
+router.post("/users", async (req, res) => {
+	try {
+		const { name, email, password, role = "user" } = req.body;
+
+		if (!name || !email || !password) {
+			res.status(400);
+			throw new Error("Please Enter all the fields");
+		}
+		// Check if user already exists
+		const existingUser = await User.findOne({ email });
+		if (existingUser) {
+			return res
+				.status(409)
+				.send({ error: "User with this email already exists" });
+		}
+
+		const user = new User({
+			name,
+			email,
+			password,
+			role,
+		});
+		const savedUser = await user.save();
+		if (savedUser) {
+			res.status(201).send({
+				_id: savedUser._id,
+				name: savedUser.name,
+				email: savedUser.email,
+				token: generateToken(savedUser._id),
+				role: savedUser.role,
+				status: savedUser.status,
+			});
+		}
+	} catch (error) {
+		res.status(400).send({
+			error: "Failed to create user",
+			details: error.message,
+		});
+	}
+});
+
+/**
+ * @swagger
+ * /v1/users:
  *   get:
  *     summary: Retrieve all users
  *     tags: [Users]
- *     security:
- *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: List of users
@@ -107,8 +87,6 @@ const bcrypt = require("bcryptjs");
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/User'
- *       500:
- *         description: Failed to fetch users
  */
 router.get("/users", protect, authorize("admin"), async (req, res) => {
 	try {
@@ -127,48 +105,7 @@ router.get("/users", protect, authorize("admin"), async (req, res) => {
 
 /**
  * @swagger
- * /v1/users/id/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: User found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/User'
- *       404:
- *         description: User not found
- *       500:
- *         description: Failed to fetch user
- */
-router.get("/users/id/:id", protect, authorize("admin"), async (req, res) => {
-	try {
-		const user = await User.findById(req.params.id).select("-password");
-		if (!user) {
-			return res.status(404).send({ error: "User not found" });
-		}
-		res.status(200).send(user);
-	} catch (error) {
-		res.status(500).send({
-			error: "Failed to fetch user",
-			details: error.message
-		});
-	}
-});
-
-/**
- * @swagger
- * /v1/users/email/{email}:
+ * /v1/users/{email}:
  *   get:
  *     summary: Get user by email
  *     tags: [Users]
@@ -178,7 +115,6 @@ router.get("/users/id/:id", protect, authorize("admin"), async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *           format: email
  *     responses:
  *       200:
  *         description: User found
@@ -188,8 +124,6 @@ router.get("/users/id/:id", protect, authorize("admin"), async (req, res) => {
  *               $ref: '#/components/schemas/User'
  *       404:
  *         description: User not found
- *       500:
- *         description: Failed to fetch user
  */
 router.get("/users/:email", async (req, res) => {
 	try {
@@ -214,15 +148,12 @@ router.get("/users/:email", async (req, res) => {
  *   patch:
  *     summary: Update user by email
  *     tags: [Users]
- *     security:
- *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: email
  *         required: true
  *         schema:
  *           type: string
- *           format: email
  *     requestBody:
  *       content:
  *         application/json:
@@ -235,61 +166,11 @@ router.get("/users/:email", async (req, res) => {
  *                 type: string
  *               age:
  *                 type: number
- *               status:
- *                 type: string
- *                 enum: [active, inactive, pending]
  *     responses:
  *       200:
  *         description: User updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       404:
  *         description: User not found
- *       400:
- *         description: Invalid updates
- *
- *   delete:
- *     summary: Delete user by email
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: email
- *         required: true
- *         schema:
- *           type: string
- *           format: email
- *     responses:
- *       200:
- *         description: User deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     email:
- *                       type: string
- *                     age:
- *                       type: number
- *       404:
- *         description: User not found
- *       500:
- *         description: Failed to delete user
  */
 router.patch(
 	"/users/:email",
@@ -337,6 +218,53 @@ router.patch(
 
 /**
  * @swagger
+ * /v1/users/{email}:
+ *   delete:
+ *     summary: Delete user by email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ */
+router.delete(
+	"/users/:email",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		try {
+			const user = await User.findOneAndDelete({
+				email: req.params.email,
+			});
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
+			res.status(200).send({
+				message: "User deleted successfully",
+				user: {
+					name: user.name,
+					email: user.email,
+					age: user.age,
+				},
+			});
+		} catch (error) {
+			res.status(500).send({
+				error: "Failed to delete user",
+				details: error.message,
+			});
+		}
+	}
+);
+
+/**
+ * @swagger
  * /v1/users/initialize:
  *   post:
  *     summary: Initialize users (Development only)
@@ -344,17 +272,8 @@ router.patch(
  *     responses:
  *       201:
  *         description: Users initialized successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
  *       403:
  *         description: Not available in production
- *       400:
- *         description: Failed to initialize users
  */
 router.post("/users/initialize", async (req, res) => {
 	try {
@@ -380,53 +299,84 @@ router.post("/users/initialize", async (req, res) => {
 /**
  * @swagger
  * /v1/users-approve:
- *   patch:
- *     summary: Approve or reject a user's account
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - approval
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               approval:
- *                 type: string
- *                 enum: [accepted, rejected]
- *     responses:
- *       200:
- *         description: User status updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     email:
- *                       type: string
- *                     status:
- *                       type: string
- *       404:
- *         description: User not found
- *       400:
- *         description: Email and approval status are required
- *       500:
- *         description: Failed to process request
+ * patch:
+ * summary: Approve or reject a user's account
+ * tags: [Users]
+ * requestBody:
+ *   required: true
+ *   content:
+ *     application/json:
+ *       schema:
+ *         type: object
+ *         properties:
+ *           email:
+ *             type: string
+ *             required: true
+ *           approval:
+ *             type: string
+ *             enum: [accepted, rejected]
+ *             required: true
+ * responses:
+ *   200:
+ *     description: User status updated successfully
+ *   404:
+ *     description: User not found
  */
+router.patch(
+	"/users-approve",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		const { email, approval } = req.body;
+
+		if (!email || !approval) {
+			return res
+				.status(400)
+				.send({ error: "Email and approval status are required" });
+		}
+
+		try {
+			// Find the user by email
+			const user = await User.findOne({ email });
+
+			if (!user) {
+				return res.status(404).send({ error: "User not found" });
+			}
+
+			if (approval === "accepted") {
+				// If approval is "accepted", set status to "active"
+				user.status = "active";
+				await user.save();
+
+				return res.status(200).send({
+					message: "User approved and activated successfully",
+					user: {
+						name: user.name,
+						email: user.email,
+						status: user.status,
+					},
+				});
+			} else if (approval === "rejected") {
+				// If approval is "rejected", delete the user
+				await User.findOneAndDelete({ email });
+
+				return res.status(200).send({
+					message: "User rejected and deleted successfully",
+					user: { name: user.name, email: user.email },
+				});
+			} else {
+				return res
+					.status(400)
+					.send({ error: "Invalid approval value" });
+			}
+		} catch (error) {
+			return res.status(500).send({
+				error: "Failed to process request",
+				details: error.message,
+			});
+		}
+	}
+);
 
 /**
  * @swagger
@@ -440,13 +390,9 @@ router.post("/users/initialize", async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - email
- *               - password
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *                 example: "user123@gmail.com"
  *               password:
  *                 type: string
@@ -465,7 +411,7 @@ router.post("/users/initialize", async (req, res) => {
  *                 name:
  *                   type: string
  *                   example: "user123"
- *                 role:
+ * 								 role:
  *                   type: string
  *                   example: "user"
  *                 token:
@@ -473,8 +419,6 @@ router.post("/users/initialize", async (req, res) => {
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *       400:
  *         description: Invalid email or password
- *       500:
- *         description: Server error
  */
 
 router.post("/users/login", async (req, res) => {
@@ -506,6 +450,62 @@ router.post("/users/login", async (req, res) => {
 	} catch (error) {
 		res.status(500).json({ error: "Server error", details: error.message });
 	}
+});
+
+/**
+ * @swagger
+ * /v1/users/id/{userId}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users/id/:userId", protect, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Return user without password
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        res.status(200).json(userResponse);
+    } catch (error) {
+        res.status(500).json({
+            error: "Failed to fetch user",
+            details: error.message
+        });
+    }
 });
 
 module.exports = router;

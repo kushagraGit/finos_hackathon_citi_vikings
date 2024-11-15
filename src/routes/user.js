@@ -399,9 +399,9 @@ router.patch(
  *           schema:
  *             type: object
  *             properties:
- *               name:
+ *               email:
  *                 type: string
- *                 example: "user123"
+ *                 example: "user123@gmail.com"
  *               password:
  *                 type: string
  *                 example: "password123"
@@ -419,25 +419,28 @@ router.patch(
  *                 name:
  *                   type: string
  *                   example: "user123"
+ * 								 role:
+ *                   type: string
+ *                   example: "user"
  *                 token:
  *                   type: string
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *       400:
- *         description: Invalid name or password
+ *         description: Invalid email or password
  */
 router.post("/users/login", async (req, res) => {
-  const { name, password } = req.body;
+  const { email, password } = req.body;
 
   try {
-    const user = await dbOrchestrator.findOne("User", { name });
+    const user = await dbOrchestrator.findOne("User", { email });
     if (!user) {
-      return res.status(400).json({ error: "Invalid name or password" });
+      return res.status(400).json({ error: "Email doesn't exist" });
     }
 
     const userInstance = new User(user);
     const isMatch = await bcrypt.compare(password, userInstance.password);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid name or password" });
+      return res.status(400).json({ error: "Invalid password" });
     }
 
     const token = generateToken(userInstance._id);
@@ -480,6 +483,62 @@ router.delete("/users/bulk", protect, authorize("admin"), async (req, res) => {
   } catch (error) {
     res.status(500).send({
       error: "Failed to delete users",
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /v1/users/id/{userId}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users/id/:userId", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return user without password
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json(userResponse);
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch user",
       details: error.message,
     });
   }

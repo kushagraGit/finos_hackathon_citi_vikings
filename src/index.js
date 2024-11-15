@@ -1,6 +1,7 @@
 const express = require("express");
 const env = require("./config/environment");
 const dbOrchestrator = require("./db/DatabaseOrchestrator");
+const cors = require("cors");
 const userRoutes = require("./routes/user");
 const healthRoutes = require("./routes/health");
 const applicationRoutes = require("./routes/application");
@@ -9,6 +10,20 @@ const { createInitialUser } = require("./seeds/createUser");
 const { createInitialApplications } = require("./seeds/createApplication");
 
 const app = express();
+
+// CORS configuration
+const corsOptions = {
+  origin: env.isDevelopment()
+    ? ["http://localhost:3000", "http://localhost:3001"] // Development origins
+    : ["https://yourdomain.com"], // Production origins
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  maxAge: 86400, // 24 hours
+};
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());

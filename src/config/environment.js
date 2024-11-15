@@ -8,7 +8,6 @@ const environment = {
   MONGODB_URL: process.env.MONGODB_URL,
   POSTGRES_URI: process.env.POSTGRES_URI,
   ORACLE_URI: process.env.ORACLE_URI,
-  JWT_SECRET: process.env.JWT_SECRET,
 
   // Helper methods
   isDevelopment: function () {
@@ -40,7 +39,7 @@ const environment = {
 };
 
 // Validate required environment variables
-const requiredEnvVars = ["DB_TYPE", "JWT_SECRET"];
+const requiredEnvVars = ["DB_TYPE"];
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {

@@ -285,7 +285,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contact
 
 -   Project Maintainer: Vishal Gautam, Yousuf Ejaz Ahmad, Kushagra Asthana
--   Email: <Vishalgautam.tech@gmail.com>, <ejazahmadyousuf2@gmail.com>, <kushagra.asthana@gmail.com>
+-   Email: <Vishalgautam.tech@gmail.com>, <ejazahmadyousuf2@gmail.com>, <kushagra661@gmail.com>
 
 ## Acknowledgments
 

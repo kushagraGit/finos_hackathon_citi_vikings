@@ -17,7 +17,7 @@ const DEFAULT_USERS = [
     password: "Test@123",
     age: 25,
     status: "active",
-    role: "user",
+    role: "admin",
   },
   {
     name: "Yousuf Ejaz Ahmad",
@@ -25,7 +25,7 @@ const DEFAULT_USERS = [
     password: "Test@456",
     age: 30,
     status: "active",
-    role: "user",
+    role: "admin",
   },
 ];
 

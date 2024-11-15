@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Application = require("../models/application");
 const { createInitialApplications } = require("../seeds/createApplication");
-const { protect } = require( "../middleware/authMiddleware" );
-const { authorize } = require( "../middleware/authorizeMiddleware" );
+const { protect } = require("../middleware/authMiddleware");
+const { authorize } = require("../middleware/authorizeMiddleware");
 
 /**
  * @swagger
@@ -40,11 +40,9 @@ router.post(
 				appId: req.body.appId,
 			});
 			if (existingApp) {
-				return res
-					.status(409)
-					.json({
-						message: "Application with this ID already exists",
-					});
+				return res.status(409).json({
+					message: "Application with this ID already exists",
+				});
 			}
 
 			const application = new Application(req.body);
@@ -92,18 +90,18 @@ router.post(
  *                   type: object
  */
 router.get("/v2/apps", protect, async (req, res) => {
-  try {
-    const apps = await Application.find();
-    res.status(200).json({
-      count: apps.length,
-      applications: apps,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch applications",
-      details: err.message,
-    });
-  }
+	try {
+		const apps = await Application.find();
+		res.status(200).json({
+			count: apps.length,
+			applications: apps,
+		});
+	} catch (err) {
+		res.status(500).json({
+			error: "Failed to fetch applications",
+			details: err.message,
+		});
+	}
 });
 
 /**
@@ -147,24 +145,20 @@ router.get("/v2/apps", protect, async (req, res) => {
  *                 error:
  *                   type: object
  */
-router.get(
-	"/v2/apps/:appId",
-	protect,
-	async (req, res) => {
-		try {
-			const app = await Application.findOne({ appId: req.params.appId });
-			if (!app) {
-				return res.status(404).json({ error: "Application not found" });
-			}
-			res.status(200).json(app);
-		} catch (err) {
-			res.status(500).json({
-				error: "Failed to fetch application",
-				details: err.message,
-			});
+router.get("/v2/apps/:appId", protect, async (req, res) => {
+	try {
+		const app = await Application.findOne({ appId: req.params.appId });
+		if (!app) {
+			return res.status(404).json({ error: "Application not found" });
 		}
+		res.status(200).json(app);
+	} catch (err) {
+		res.status(500).json({
+			error: "Failed to fetch application",
+			details: err.message,
+		});
 	}
-);
+});
 
 /**
  * @swagger
@@ -211,7 +205,7 @@ router.get(
 router.patch(
 	"/v2/apps/:appId",
 	protect,
-	authorize( "admin", "editor"),
+	authorize("admin", "editor"),
 	async (req, res) => {
 		try {
 			const updates = Object.keys(req.body);
@@ -388,7 +382,7 @@ router.delete(
 router.post(
 	"/v1/apps/search",
 	protect,
-	authorize( "admin"),
+	authorize("admin"),
 	async (req, res) => {
 		try {
 			const { appId, version, title, description, categories } = req.body;
@@ -554,7 +548,7 @@ router.post(
 router.post(
 	"/v2/apps/initialize",
 	protect,
-	authorize("user", "admin", "editor", "appDConsumer"),
+	authorize("user", "admin", "editor", "desktopAgent"),
 	async (req, res) => {
 		try {
 			if (process.env.NODE_ENV === "production") {
@@ -582,7 +576,7 @@ router.post(
 router.get(
 	"/v2/apps/intents/:intentName",
 	protect,
-	authorize("user", "admin", "editor", "appDConsumer"),
+	authorize("user", "admin", "editor", "desktopAgent"),
 	async (req, res) => {
 		try {
 			const { intentName } = req.params;
@@ -641,46 +635,59 @@ router.get(
  *   404:
  *     description: Application not found
  */
-router.patch("/applications/approve", protect, authorize("admin"), async (req, res) => {
-  const { appId, approval } = req.body;
+router.patch(
+	"/applications/approve",
+	protect,
+	authorize("admin"),
+	async (req, res) => {
+		const { appId, approval } = req.body;
 
-  if (!appId || !approval) {
-    return res.status(400).send({ error: "appId and approval status are required" });
-  }
+		if (!appId || !approval) {
+			return res
+				.status(400)
+				.send({ error: "appId and approval status are required" });
+		}
 
-  try {
-    // Find the application by appId
-    const application = await Application.findOne({ appId });
+		try {
+			// Find the application by appId
+			const application = await Application.findOne({ appId });
 
-    if (!application) {
-      return res.status(404).send({ error: "Application not found" });
-    }
+			if (!application) {
+				return res.status(404).send({ error: "Application not found" });
+			}
 
-    if (approval === "accepted") {
-      // If approval is "accepted", set status to "active"
-      application.status = "active";
-      await application.save();
+			if (approval === "accepted") {
+				// If approval is "accepted", set status to "active"
+				application.status = "active";
+				await application.save();
 
-      return res.status(200).send({
-        message: "Application approved and activated successfully",
-        application: { appId: application.appId, title: application.title, status: application.status },
-      });
-    } else if (approval === "rejected") {
-      // If approval is "rejected", delete the application
-      await Application.findOneAndDelete({ appId });
+				return res.status(200).send({
+					message: "Application approved and activated successfully",
+					application: {
+						appId: application.appId,
+						title: application.title,
+						status: application.status,
+					},
+				});
+			} else if (approval === "rejected") {
+				// If approval is "rejected", delete the application
+				await Application.findOneAndDelete({ appId });
 
-      return res.status(200).send({
-        message: "Application rejected and deleted successfully",
-        application: { appId, title: application.title },
-      });
-    } else {
-      return res.status(400).send({ error: "Invalid approval value" });
-    }
-  } catch (error) {
-    return res.status(500).send({
-      error: "Failed to process request",
-      details: error.message,
-    });
-  }
-});
+				return res.status(200).send({
+					message: "Application rejected and deleted successfully",
+					application: { appId, title: application.title },
+				});
+			} else {
+				return res
+					.status(400)
+					.send({ error: "Invalid approval value" });
+			}
+		} catch (error) {
+			return res.status(500).send({
+				error: "Failed to process request",
+				details: error.message,
+			});
+		}
+	}
+);
 module.exports = router;

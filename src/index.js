@@ -5,6 +5,8 @@ const userRoutes = require("./routes/user");
 const healthRoutes = require("./routes/health");
 const applicationRoutes = require("./routes/application");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
+const { createInitialUser } = require("./seeds/createUser");
+const { createInitialApplications } = require("./seeds/createApplication");
 
 const app = express();
 
@@ -34,9 +36,9 @@ const startServer = async () => {
       console.log("Initializing development data...");
       await Promise.all([
         createInitialUser().then(() => console.log("Users initialized")),
-        // createInitialApplications().then(() =>
-        //   console.log("Applications initialized")
-        // ),
+        createInitialApplications().then(() =>
+          console.log("Applications initialized")
+        ),
       ]);
     }
 

@@ -212,8 +212,11 @@ router.patch(
     }
 
     try {
-      // Create a User instance for validation
-      const updateData = new User(req.body).toObject();
+      // Create update data object with only the fields being updated
+      const updateData = {};
+      updates.forEach((field) => {
+        updateData[field] = req.body[field];
+      });
 
       const user = await dbOrchestrator.findOneAndUpdate(
         "User",

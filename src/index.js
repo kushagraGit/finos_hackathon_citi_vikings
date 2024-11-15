@@ -9,9 +9,18 @@ const applicationRoutes = require("./routes/application");
 const { errorHandler, notFound } = require( "./middleware/errorMiddleware" );
 
 const app = express();
+const path = require('path');
+const expressLayouts = require('express-ejs-layouts');
+const frontendRouter = require('./frontend/public/router/indexrouter')
+
+// View engine setup
+app.set('views', path.join(__dirname, 'frontend/views'));
+app.set('view engine', 'ejs');
+app.use(expressLayouts);
 
 // Middleware
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'frontend/public')));
 
 // Import Swagger setup (after middleware)
 require("./config/swagger")(app);
@@ -20,6 +29,7 @@ require("./config/swagger")(app);
 app.use("/v1", healthRoutes);
 app.use("/v1", userRoutes);
 app.use("/api", applicationRoutes);
+app.use("/", frontendRouter);
 
 app.use(errorHandler);
 app.use(notFound);
@@ -53,3 +63,5 @@ const startServer = async () => {
 };
 
 startServer();
+
+console.log('Views directory:', app.get('views'));

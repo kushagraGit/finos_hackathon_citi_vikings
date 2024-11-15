@@ -199,7 +199,7 @@ router.patch(
   authorize("admin", "editor"),
   async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ["name", "password", "age", "status"];
+    const allowedUpdates = ["name", "role", "age", "status"];
     const isValidOperation = updates.every((update) =>
       allowedUpdates.includes(update)
     );

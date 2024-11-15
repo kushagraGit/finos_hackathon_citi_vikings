@@ -1,0 +1,442 @@
+<body>
+  <div class="main-content">
+    <div class="container-fluid mt--7">
+      <div class="row mt-5">
+        <div class="col-xl-12 mb-5 mb-xl-0 mt-7">
+          <div class="card shadow">
+            <div class="card-header border-0">
+              <div class="row align-items-center">
+                <div class="col">
+                  <div class="d-flex align-items-center">
+                    <h3 class="mb-0 mr-3">User Management</h3>
+                    <button onclick="toggleView()" class="btn btn-sm btn-primary">
+                      <i class="fas fa-exchange-alt mr-1"></i>Switch to Apps
+                    </button>
+                  </div>
+                </div>
+                <div class="col text-right">
+                  <span class="mr-3" id="userInfo">Welcome, <strong id="loggedInUser">${user ? user.name : 'Loading...'}</strong></span>
+                  <button onclick="logout()" class="btn btn-sm btn-danger mr-2">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="alertContainer"></div>
+              <div class="table-responsive">
+                <table class="table align-items-center table-flush">
+                  <thead class="thead-light">
+                    <tr>
+                      <th scope="col">User ID</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Role</th>
+                      <th scope="col">Age</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="userTableBody">
+                    <!-- Users will be dynamically inserted here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add this script section at the bottom of your body tag -->
+  <script>
+    // Add this function near the top of your script section
+    function checkAuthorization() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+            return false;
+        }
+        return true;
+    }
+
+    // Move fetchUsers to global scope
+    async function fetchUsers() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          window.location.href = '/login';
+          return;
+        }
+
+        const response = await fetch('/v1/users', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
+          document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          window.location.href = '/login';
+          return;
+        }
+
+        const data = await response.json();
+        if (response.ok) {
+          renderUsers(data.users);
+        } else {
+          console.error('Failed to fetch users:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    }
+
+    // Move renderUsers to global scope as well
+    function renderUsers(users) {
+      const tbody = document.getElementById('userTableBody');
+      if (!tbody) return;
+
+      // Update welcome message with the first user's name (assuming it's the logged-in user)
+      if (users && users.length > 0) {
+        const loggedInUser = users.find(user => user.status === 'active');
+        if (loggedInUser) {
+          document.getElementById('loggedInUser').textContent = loggedInUser.name;
+        }
+      }
+
+      tbody.innerHTML = users.map(user => {
+        // Determine button properties based on status
+        let buttonProps = {
+          text: 'No Action',
+          class: 'btn-secondary',
+          action: '',
+          show: false,
+          showId: false
+        };
+
+        switch (user.status) {
+          case 'inactive':
+            buttonProps = {
+              text: 'Approve',
+              class: 'btn-success',
+              action: `approveUser('${user._id}')`,
+              show: true,
+              showId: false
+            };
+            break;
+          case 'active':
+            buttonProps = {
+              text: 'Reject',
+              class: 'btn-danger',
+              action: `rejectUser('${user._id}')`,
+              show: true,
+              showId: true
+            };
+            break;
+        }
+
+        return `
+            <tr id="row-${user._id}">
+                <td>
+                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'email')">${user.email}</span>
+                </td>
+                <td>
+                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'name')">${user.name}</span>
+                </td>
+                <td>
+                    <div class="editable-select" onclick="makeSelectEditable(this, '${user._id}', 'role')">
+                        <select class="form-control form-control-sm" onchange="updateUserField('${user._id}', 'role', this.value)">
+                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editor</option>
+                        </select>
+                    </div>
+                </td>
+                <td>
+                    <span class="editable" onclick="makeEditable(this, '${user._id}', 'age')">${user.age || 'N/A'}</span>
+                </td>
+                <td>
+                    <span class="badge badge-${user.status === 'active' ? 'success' : user.status === 'pending' ? 'warning' : 'danger'}">
+                        ${user.status}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        ${buttonProps.show ? 
+                            `<button class="btn btn-sm ${buttonProps.class}" onclick="${buttonProps.action}">
+                                ${buttonProps.text}
+                            </button>` : ''
+                        }
+                        ${buttonProps.showId ? 
+                            `<div class="d-flex align-items-center ml-2">
+                                <small class="text-muted">${user._id}</small>
+                                <button class="btn btn-sm btn-link ml-1" 
+                                        onclick="copyToClipboard('${user._id}')"
+                                        title="Copy ID">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>` : ''
+                        }
+                    </div>
+                </td>
+            </tr>
+        `;
+      }).join('');
+    }
+
+    // Keep existing global functions
+    async function approveUser(userId) {
+      try {
+        const token = localStorage.getItem('token');
+        const user = await getUserById(userId);
+
+        const response = await fetch('/v1/users-approve', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email: user.email,
+            approval: 'accepted'
+          })
+        });
+
+        if (response.ok) {
+          showSuccess('User approved successfully');
+          fetchUsers(); // This will refresh the list and show the ID for the now-active user
+        } else {
+          const data = await response.json();
+          showError(data.error || 'Failed to approve user');
+        }
+      } catch (error) {
+        console.error('Error approving user:', error);
+        showError('Failed to approve user');
+      }
+    }
+
+    async function rejectUser(userId) {
+      try {
+        const token = localStorage.getItem('token');
+        const user = await getUserById(userId);
+
+        const response = await fetch('/v1/users-approve', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            email: user.email,
+            approval: 'rejected'
+          })
+        });
+
+        if (response.ok) {
+          showSuccess('User rejected successfully');
+          fetchUsers(); // Refresh the user list
+        } else {
+          const data = await response.json();
+          showError(data.error || 'Failed to reject user');
+        }
+      } catch (error) {
+        console.error('Error rejecting user:', error);
+        showError('Failed to reject user');
+      }
+    }
+
+    async function getUserById(userId) {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/v1/users/id/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user details');
+      }
+
+      return await response.json();
+    }
+
+    function showError(message) {
+      const alertContainer = document.getElementById('alertContainer');
+      if (alertContainer) {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.role = 'alert';
+        errorDiv.textContent = message;
+
+        alertContainer.innerHTML = ''; // Clear previous alerts
+        alertContainer.appendChild(errorDiv);
+
+        setTimeout(() => errorDiv.remove(), 5000);
+      }
+    }
+
+    function showSuccess(message) {
+      const alertContainer = document.getElementById('alertContainer');
+      if (alertContainer) {
+        const successDiv = document.createElement('div');
+        successDiv.className = 'alert alert-success';
+        successDiv.role = 'alert';
+        successDiv.textContent = message;
+
+        alertContainer.innerHTML = ''; // Clear previous alerts
+        alertContainer.appendChild(successDiv);
+
+        setTimeout(() => successDiv.remove(), 5000);
+      }
+    }
+
+    // Add these functions to your existing script
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+
+    function getLoggedInUser() {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+
+      // Decode JWT token
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload;
+    }
+
+    // Update the DOMContentLoaded event listener
+    document.addEventListener('DOMContentLoaded', function () {
+      // Display logged in user
+      const user = getLoggedInUser();
+      if (user) {
+        document.getElementById('loggedInUser').textContent = user.name || 'User';
+      }
+
+      // Start fetching users
+      fetchUsers();
+    });
+
+    // Add this function to handle copying to clipboard
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showSuccess('ID copied to clipboard!');
+      } catch (err) {
+        showError('Failed to copy ID');
+        console.error('Failed to copy:', err);
+      }
+    }
+
+    // Update the toggleView function to use the authorization check
+    function toggleView() {
+        if (!checkAuthorization()) return;
+        const currentPath = window.location.pathname;
+        
+        if (currentPath === '/apps') {
+            window.location.href = '/search';
+        } else {
+            window.location.href = '/apps';
+        }
+    }
+
+    // Add these new functions for editing
+    function makeEditable(element, userId, field) {
+        const currentValue = element.textContent;
+        let inputType = 'text';
+        
+        // Determine input type based on field
+        if (field === 'age') {
+            inputType = 'number';
+        } else if (field === 'email') {
+            inputType = 'email';
+        }
+
+        element.innerHTML = `
+            <input type="${inputType}" 
+                   class="form-control form-control-sm" 
+                   value="${currentValue}"
+                   onblur="updateUserField('${userId}', '${field}', this.value)"
+                   onkeypress="if(event.key === 'Enter') this.blur()">
+        `;
+        element.querySelector('input').focus();
+    }
+
+    async function updateUserField(userId, field, value) {
+        try {
+            const token = localStorage.getItem('token');
+            const user = await getUserById(userId);
+            
+            const response = await fetch(`/v1/users/${user.email}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    [field]: field === 'age' ? parseInt(value) : value
+                })
+            });
+
+            if (response.ok) {
+                showSuccess(`User ${field} updated successfully`);
+                fetchUsers(); // Refresh the table
+            } else {
+                const data = await response.json();
+                showError(data.error || `Failed to update user ${field}`);
+            }
+        } catch (error) {
+            console.error(`Error updating user ${field}:`, error);
+            showError(`Failed to update user ${field}`);
+        }
+    }
+
+    // Add function to handle select fields
+    function makeSelectEditable(element, userId, field) {
+        const select = element.querySelector('select');
+        select.focus();
+    }
+
+    // Update the CSS for better visual feedback
+    const style = document.createElement('style');
+    style.textContent = `
+        .editable {
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        .editable:hover {
+            background-color: #f8f9fa;
+        }
+        .editable::after {
+            content: '✎';
+            margin-left: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .editable:hover::after {
+            opacity: 0.5;
+        }
+        .editable-select {
+            cursor: pointer;
+        }
+        .form-control-sm {
+            height: calc(1.5em + 0.5rem + 2px);
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            border-radius: 0.2rem;
+        }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>

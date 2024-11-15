@@ -105,7 +105,44 @@ router.get("/users", protect, authorize("admin"), async (req, res) => {
 
 /**
  * @swagger
- * /v1/users/{email}:
+ * /v1/users/id/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: User not found
+ */
+router.get("/users/id/:id", protect, authorize("admin"), async (req, res) => {
+	try {
+		const user = await User.findById(req.params.id).select("-password");
+		if (!user) {
+			return res.status(404).send({ error: "User not found" });
+		}
+		res.status(200).send(user);
+	} catch (error) {
+		res.status(500).send({
+			error: "Failed to fetch user",
+			details: error.message
+		});
+	}
+});
+
+/**
+ * @swagger
+ * /v1/users/email/{email}:
  *   get:
  *     summary: Get user by email
  *     tags: [Users]
@@ -357,8 +394,9 @@ router.patch(
 					},
 				});
 			} else if (approval === "rejected") {
-				// If approval is "rejected", delete the user
-				await User.findOneAndDelete({ email });
+				// If approval is "rejected", inactive the user
+        user.status = "inactive";
+				await user.save();
 
 				return res.status(200).send({
 					message: "User rejected and deleted successfully",

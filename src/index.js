@@ -1,5 +1,6 @@
 const express = require("express");
 const env = require("./config/environment");
+const cors = require("cors");
 const { connectMongoDB } = require("./database/mongo");
 const { createInitialUser } = require("./seeds/createUser");
 const { createInitialApplications } = require("./seeds/createApplication");
@@ -9,6 +10,20 @@ const applicationRoutes = require("./routes/application");
 const { errorHandler, notFound } = require( "./middleware/errorMiddleware" );
 
 const app = express();
+
+// CORS configuration
+const corsOptions = {
+  origin: env.isDevelopment() 
+    ? ['http://localhost:3000', 'http://localhost:3001'] // Development origins
+    : ['https://yourdomain.com'], // Production origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
+
+// Apply CORS before other middleware
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());

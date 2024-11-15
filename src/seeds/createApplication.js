@@ -1,4 +1,4 @@
-const { connectMongoDB } = require("../database/mongo");
+const dbOrchestrator = require("../db/DatabaseOrchestrator");
 const Application = require("../models/application");
 
 const DEFAULT_APPLICATIONS = [
@@ -88,20 +88,39 @@ const DEFAULT_APPLICATIONS = [
 
 const createInitialApplications = async () => {
   try {
-    const results = await Promise.all(
-      DEFAULT_APPLICATIONS.map(async (appData) => {
-        const existingApp = await Application.findOne({ appId: appData.appId });
-        if (!existingApp) {
-          const app = new Application(appData);
-          await app.save();
-          return `Application created: ${appData.appId}`;
-        }
-        return `Application already exists: ${appData.appId}`;
-      })
-    );
+    // Start transaction
+    await dbOrchestrator.startTransaction();
 
-    console.log("Application initialization results:", results);
-    return results;
+    try {
+      const results = await Promise.all(
+        DEFAULT_APPLICATIONS.map(async (appData) => {
+          // Check if application exists using orchestrator
+          const existingApp = await dbOrchestrator.findOne("Application", {
+            appId: appData.appId,
+          });
+
+          if (!existingApp) {
+            // Create new Application instance for validation
+            const app = new Application(appData);
+
+            // Save using orchestrator
+            await dbOrchestrator.create("Application", app.toObject());
+            return `Application created: ${appData.appId}`;
+          }
+          return `Application already exists: ${appData.appId}`;
+        })
+      );
+
+      // Commit transaction if all operations succeed
+      await dbOrchestrator.commitTransaction();
+
+      console.log("Application initialization results:", results);
+      return results;
+    } catch (error) {
+      // Rollback transaction if any operation fails
+      await dbOrchestrator.abortTransaction();
+      throw error;
+    }
   } catch (error) {
     console.error("Application initialization error:", error.message);
     throw error;
@@ -112,16 +131,19 @@ const createInitialApplications = async () => {
 const runSeed = async () => {
   console.log("Starting application initialization process...");
   try {
-    await connectMongoDB();
-    console.log("Connected to MongoDB");
+    // Connect using orchestrator
+    await dbOrchestrator.connect();
+    console.log("Connected to database");
 
     await createInitialApplications();
     console.log("Application initialization completed successfully");
 
-    // Disconnect from MongoDB
+    // Disconnect using orchestrator
+    await dbOrchestrator.disconnect();
     process.exit(0);
   } catch (error) {
     console.error("Failed to initialize applications:", error.message);
+    await dbOrchestrator.disconnect();
     process.exit(1);
   }
 };

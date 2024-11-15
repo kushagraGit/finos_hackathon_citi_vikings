@@ -1,4 +1,4 @@
-const { connectMongoDB } = require("../database/mongo");
+const dbOrchestrator = require("../db/DatabaseOrchestrator");
 const User = require("../models/user");
 
 const DEFAULT_USERS = [
@@ -8,18 +8,24 @@ const DEFAULT_USERS = [
     password: "Test@1234",
     age: 26,
     isAdmin: true,
+    status: "active",
+    role: "admin",
   },
   {
     name: "Kushagra Asthana",
     email: "kushagra.asthana@gmail.com",
     password: "Test@123",
     age: 25,
+    status: "active",
+    role: "user",
   },
   {
     name: "Yousuf Ejaz Ahmad",
     email: "yousuf.ejaz.ahmad@gmail.com",
     password: "Test@456",
     age: 30,
+    status: "active",
+    role: "user",
   },
 ];
 
@@ -27,11 +33,21 @@ const createInitialUser = async () => {
   try {
     const results = await Promise.all(
       DEFAULT_USERS.map(async (userData) => {
-        const existingUser = await User.findOne({ email: userData.email });
+        // Check if user already exists
+        const existingUser = await dbOrchestrator.findOne("User", {
+          email: userData.email,
+        });
+
         if (!existingUser) {
+          // Create a new User instance to leverage model validations and middleware
           const user = new User(userData);
-          await user.save();
-          return `User created: ${userData.email}`;
+
+          // Use the user object's data to create the record via orchestrator
+          const savedUser = await dbOrchestrator.create(
+            "User",
+            user.toObject()
+          );
+          return `User created: ${savedUser.email}`;
         }
         return `User already exists: ${userData.email}`;
       })
@@ -49,13 +65,15 @@ const createInitialUser = async () => {
 const runSeed = async () => {
   console.log("Starting initialization process...");
   try {
-    await connectMongoDB();
-    console.log("Connected to MongoDB");
+    // Connect to database using orchestrator
+    await dbOrchestrator.connect();
+    console.log("Connected to database");
 
     await createInitialUser();
     console.log("Initialization completed successfully");
 
-    // Disconnect from MongoDB
+    // Disconnect from database
+    await dbOrchestrator.disconnect();
     process.exit(0);
   } catch (error) {
     console.error("Failed to initialize:", error.message);

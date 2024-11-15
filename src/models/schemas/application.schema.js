@@ -10,15 +10,19 @@
  *       properties:
  *         appId:
  *           type: string
- *           description: Unique identifier for the application
+ *           description: Unique identifier for the application (letters, numbers, hyphens and underscores only)
+ *           pattern: "^[a-zA-Z0-9-_]+$"
  *           example: "app-123"
  *         title:
  *           type: string
- *           description: Application title
+ *           description: Application title (2-100 characters)
+ *           minLength: 2
+ *           maxLength: 100
  *           example: "Trading App"
  *         description:
  *           type: string
  *           description: Detailed description of the application
+ *           maxLength: 1000
  *           example: "A powerful trading application"
  *         version:
  *           type: string
@@ -44,8 +48,8 @@
  *           type: array
  *           items:
  *             type: string
- *           description: Categories the application belongs to
- *           example: ["Trading", "Finance"]
+ *             description: Categories are stored in uppercase
+ *           example: ["TRADING", "FINANCE"]
  *         icons:
  *           type: array
  *           items:
@@ -106,4 +110,10 @@
  *               format: uri
  *               description: Application URL
  *               example: "https://tradingapp.com"
+ *         status:
+ *           type: string
+ *           enum: ["active", "inactive"]
+ *           default: "inactive"
+ *           description: Application status
+ *           example: "inactive"
  */

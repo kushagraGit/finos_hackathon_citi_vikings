@@ -354,7 +354,7 @@ router.delete(
 
 /**
  * @swagger
- * /api/v2/apps/search:
+ * /api/v1/apps/search:
  *   post:
  *     summary: Search applications based on multiple criteria
  *     tags: [Applications]
@@ -425,7 +425,7 @@ router.delete(
  *                 details:
  *                   type: string
  */
-router.post("/v2/apps/search", protect, async (req, res) => {
+router.post("/v1/apps/search", protect, async (req, res) => {
   try {
     const { appId, version, title, description, categories } = req.body;
     const searchQueries = [];

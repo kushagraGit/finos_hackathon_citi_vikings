@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { isMongoConnected } = require("../database/mongo");
+const dbOrchestrator = require("../db/DatabaseOrchestrator");
 
 /**
  * @swagger
@@ -106,7 +106,11 @@ router.get("/health", (req, res) => {
  */
 router.get("/health/detailed", async (req, res) => {
   try {
-    const dbConnected = isMongoConnected();
+    const dbHealthy = await dbOrchestrator.checkHealth();
+
+    if (!dbHealthy) {
+      throw new Error("Database is not healthy");
+    }
 
     res.status(200).json({
       status: "healthy",
@@ -118,8 +122,8 @@ router.get("/health/detailed", async (req, res) => {
         free: process.memoryUsage().heapTotal - process.memoryUsage().heapUsed,
       },
       database: {
-        status: dbConnected ? "connected" : "disconnected",
-        healthy: dbConnected,
+        status: "connected",
+        healthy: true,
       },
     });
   } catch (error) {
@@ -199,9 +203,10 @@ router.get("/health/live", (req, res) => {
  */
 router.get("/health/ready", async (req, res) => {
   try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error("Database not connected");
+    const dbHealthy = await dbOrchestrator.checkHealth();
+
+    if (!dbHealthy) {
+      throw new Error("Database is not ready");
     }
 
     res.status(200).json({

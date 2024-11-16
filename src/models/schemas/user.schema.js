@@ -38,4 +38,16 @@
  *           format: date-time
  *           description: Timestamp of last update
  *           example: "2024-03-15T10:30:00Z"
+ *         role:
+ *           type: string
+ *           enum: ["user", "admin", "editor", "desktopAgent"]
+ *           default: "user"
+ *           description: User's role in the system
+ *           example: "user"
+ *         status:
+ *           type: string
+ *           enum: ["active", "inactive"]
+ *           default: "inactive"
+ *           description: User's account status
+ *           example: "inactive"
  */

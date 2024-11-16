@@ -12,23 +12,154 @@ const dbOrchestrator = require("../db/DatabaseOrchestrator");
  *   post:
  *     summary: Create a new application
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Create a new application. Requires authentication and appropriate role (user, admin, or editor).
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Application'
+ *             type: object
+ *             required:
+ *               - appId
+ *               - title
+ *             properties:
+ *               appId:
+ *                 type: string
+ *                 pattern: '^[a-zA-Z0-9-_]+$'
+ *                 description: Unique identifier for the application
+ *                 example: "trading-app-1"
+ *               title:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *                 description: Application title
+ *                 example: "Trading Application"
+ *               description:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Application description
+ *                 example: "A powerful trading application for financial markets"
+ *               version:
+ *                 type: string
+ *                 pattern: '^\d+\.\d+\.\d+$'
+ *                 description: Application version in semver format
+ *                 example: "1.0.0"
+ *               categories:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   description: Category name in uppercase
+ *                 example: ["TRADING", "FINANCE"]
+ *               icons:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     src:
+ *                       type: string
+ *                       format: uri
+ *                       example: "https://example.com/icon.png"
+ *                     size:
+ *                       type: string
+ *                       pattern: '^\d+x\d+$'
+ *                       example: "32x32"
+ *               screenshots:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     src:
+ *                       type: string
+ *                       format: uri
+ *                       example: "https://example.com/screenshot.png"
+ *                     label:
+ *                       type: string
+ *                       maxLength: 100
+ *                       example: "Main Trading View"
  *     responses:
  *       201:
  *         description: Application created successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Application'
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   example: "60d3b41ef3g2c4d5e6f7a8b9"
+ *                 appId:
+ *                   type: string
+ *                   example: "trading-app-1"
+ *                 title:
+ *                   type: string
+ *                   example: "Trading Application"
+ *                 description:
+ *                   type: string
+ *                   example: "A powerful trading application for financial markets"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["TRADING", "FINANCE"]
+ *                 status:
+ *                   type: string
+ *                   example: "inactive"
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-03-15T10:30:00Z"
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-03-15T10:30:00Z"
  *       400:
  *         description: Invalid input data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid input data"
+ *                 error:
+ *                   type: string
+ *                   example: "appId can only contain letters, numbers, hyphens and underscores"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       403:
+ *         description: Forbidden - User role not authorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, requires user/admin/editor role"
  *       409:
  *         description: Application already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Application with this ID already exists"
  */
 router.post(
   "/v2/apps",
@@ -78,9 +209,12 @@ router.post(
  *   get:
  *     summary: Retrieve all application definitions
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Retrieve a list of all applications. Requires authentication.
  *     responses:
  *       200:
- *         description: List of applications
+ *         description: List of applications retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -88,21 +222,90 @@ router.post(
  *               properties:
  *                 count:
  *                   type: integer
+ *                   description: Total number of applications
+ *                   example: 2
  *                 applications:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Application'
- *       500:
- *         description: Server error
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: "60d3b41ef3g2c4d5e6f7a8b9"
+ *                       appId:
+ *                         type: string
+ *                         example: "trading-app-1"
+ *                       title:
+ *                         type: string
+ *                         example: "Trading Application"
+ *                       description:
+ *                         type: string
+ *                         example: "A powerful trading application for financial markets"
+ *                       version:
+ *                         type: string
+ *                         example: "1.0.0"
+ *                       categories:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["TRADING", "FINANCE"]
+ *                       icons:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             src:
+ *                               type: string
+ *                               example: "https://example.com/icon.png"
+ *                             size:
+ *                               type: string
+ *                               example: "32x32"
+ *                       screenshots:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             src:
+ *                               type: string
+ *                               example: "https://example.com/screenshot.png"
+ *                             label:
+ *                               type: string
+ *                               example: "Main Trading View"
+ *                       status:
+ *                         type: string
+ *                         enum: [active, inactive]
+ *                         example: "active"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-03-15T10:30:00Z"
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-03-15T10:30:00Z"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
  *                 error:
- *                   type: object
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       500:
+ *         description: Server error while fetching applications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to fetch applications"
+ *                 details:
+ *                   type: string
+ *                   example: "Database connection error"
  */
 router.get("/v2/apps", protect, async (req, res) => {
   try {
@@ -125,20 +328,90 @@ router.get("/v2/apps", protect, async (req, res) => {
  *   get:
  *     summary: Retrieve an application definition by appId
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Retrieve a single application by its unique appId. Requires authentication.
  *     parameters:
  *       - in: path
  *         name: appId
  *         required: true
  *         schema:
  *           type: string
- *         description: The application ID
+ *           pattern: '^[a-zA-Z0-9-_]+$'
+ *         description: Unique identifier of the application
+ *         example: "trading-app-1"
  *     responses:
  *       200:
- *         description: Application details
+ *         description: Application details retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Application'
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   example: "60d3b41ef3g2c4d5e6f7a8b9"
+ *                 appId:
+ *                   type: string
+ *                   example: "trading-app-1"
+ *                 title:
+ *                   type: string
+ *                   example: "Trading Application"
+ *                 description:
+ *                   type: string
+ *                   example: "A powerful trading application for financial markets"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 categories:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["TRADING", "FINANCE"]
+ *                 icons:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       src:
+ *                         type: string
+ *                         example: "https://example.com/icon.png"
+ *                       size:
+ *                         type: string
+ *                         example: "32x32"
+ *                 screenshots:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       src:
+ *                         type: string
+ *                         example: "https://example.com/screenshot.png"
+ *                       label:
+ *                         type: string
+ *                         example: "Main Trading View"
+ *                 status:
+ *                   type: string
+ *                   enum: [active, inactive]
+ *                   example: "active"
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-03-15T10:30:00Z"
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-03-15T10:30:00Z"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
  *       404:
  *         description: Application not found
  *         content:
@@ -146,19 +419,22 @@ router.get("/v2/apps", protect, async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
- *                 message:
+ *                 error:
  *                   type: string
+ *                   example: "Application not found"
  *       500:
- *         description: Server error
+ *         description: Server error while fetching application
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
  *                 error:
- *                   type: object
+ *                   type: string
+ *                   example: "Failed to fetch application"
+ *                 details:
+ *                   type: string
+ *                   example: "Database connection error"
  */
 router.get("/v2/apps/:appId", protect, async (req, res) => {
   try {
@@ -184,13 +460,18 @@ router.get("/v2/apps/:appId", protect, async (req, res) => {
  *   patch:
  *     summary: Update an application by appId
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Update an application's details. Requires admin or editor role.
  *     parameters:
  *       - in: path
  *         name: appId
  *         required: true
  *         schema:
  *           type: string
- *         description: The application ID
+ *           pattern: '^[a-zA-Z0-9-_]+$'
+ *         description: Unique identifier of the application
+ *         example: "trading-app-1"
  *     requestBody:
  *       required: true
  *       content:
@@ -200,25 +481,133 @@ router.get("/v2/apps/:appId", protect, async (req, res) => {
  *             properties:
  *               title:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *                 example: "Updated Trading App"
  *               description:
  *                 type: string
+ *                 maxLength: 1000
+ *                 example: "An updated trading application"
  *               version:
  *                 type: string
+ *                 pattern: '^\d+\.\d+\.\d+$'
+ *                 example: "1.1.0"
  *               categories:
  *                 type: array
  *                 items:
  *                   type: string
+ *                 example: ["TRADING", "FINANCE"]
+ *               icons:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     src:
+ *                       type: string
+ *                       format: uri
+ *                       example: "https://example.com/icon.png"
+ *                     size:
+ *                       type: string
+ *                       pattern: '^\d+x\d+$'
+ *                       example: "32x32"
+ *               screenshots:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     src:
+ *                       type: string
+ *                       format: uri
+ *                       example: "https://example.com/screenshot.png"
+ *                     label:
+ *                       type: string
+ *                       maxLength: 100
+ *                       example: "Updated Trading View"
+ *               contactEmail:
+ *                 type: string
+ *                 format: email
+ *                 example: "contact@trading-app.com"
+ *               supportEmail:
+ *                 type: string
+ *                 format: email
+ *                 example: "support@trading-app.com"
+ *               moreInfo:
+ *                 type: string
+ *                 format: uri
+ *                 example: "https://trading-app.com/info"
+ *               publisher:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: "Trading Corp"
+ *               details:
+ *                 type: object
+ *                 properties:
+ *                   url:
+ *                     type: string
+ *                     format: uri
+ *                     example: "https://trading-app.com"
+ *               intents:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/Intent'
  *     responses:
  *       200:
  *         description: Application updated successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Application'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Application updated successfully"
+ *                 application:
+ *                   $ref: '#/components/schemas/Application'
+ *       400:
+ *         description: Invalid updates or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Invalid updates"
+ *                 allowedUpdates:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["title", "description", "version", "categories", "icons", "screenshots", "contactEmail", "supportEmail", "moreInfo", "publisher", "details", "intents"]
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       403:
+ *         description: Forbidden - User is not an admin or editor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, admin/editor role required"
  *       404:
  *         description: Application not found
- *       400:
- *         description: Invalid input data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Application not found"
  */
 router.patch(
   "/v2/apps/:appId",
@@ -297,13 +686,18 @@ router.patch(
  *   delete:
  *     summary: Delete an application by appId
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Delete an application by its unique appId. Requires admin role.
  *     parameters:
  *       - in: path
  *         name: appId
  *         required: true
  *         schema:
  *           type: string
- *         description: The application ID
+ *           pattern: '^[a-zA-Z0-9-_]+$'
+ *         description: Unique identifier of the application
+ *         example: "trading-app-1"
  *     responses:
  *       200:
  *         description: Application deleted successfully
@@ -314,8 +708,76 @@ router.patch(
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "Application deleted successfully"
+ *                 application:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: "60d3b41ef3g2c4d5e6f7a8b9"
+ *                     appId:
+ *                       type: string
+ *                       example: "trading-app-1"
+ *                     title:
+ *                       type: string
+ *                       example: "Trading Application"
+ *                     description:
+ *                       type: string
+ *                       example: "A powerful trading application"
+ *                     version:
+ *                       type: string
+ *                       example: "1.0.0"
+ *                     categories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["TRADING", "FINANCE"]
+ *                     status:
+ *                       type: string
+ *                       example: "active"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       403:
+ *         description: Forbidden - User is not an admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, admin role required"
  *       404:
  *         description: Application not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Application not found"
+ *       500:
+ *         description: Server error while deleting application
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to delete application"
+ *                 details:
+ *                   type: string
+ *                   example: "Database transaction failed"
  */
 router.delete(
   "/v2/apps/:appId",
@@ -358,6 +820,9 @@ router.delete(
  *   post:
  *     summary: Search applications based on multiple criteria
  *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Search applications using various criteria. All criteria are optional but at least one valid criterion is required. Supports partial matches and case-insensitive search.
  *     requestBody:
  *       required: false
  *       content:
@@ -367,41 +832,72 @@ router.delete(
  *             properties:
  *               appId:
  *                 type: string
- *                 description: Exact match for application ID (min 1 character)
- *                 example: "fdc3-workbench"
+ *                 description: Case-insensitive partial match for application ID
+ *                 example: "trading"
  *               version:
  *                 type: string
- *                 description: Exact match for version (format x.x.x)
- *                 example: "1.0.0"
+ *                 description: Version search (partial match supported)
+ *                 pattern: '^\d+(\.\d+)*$'
+ *                 example: "1.0"
  *               title:
  *                 type: string
- *                 description: Case-insensitive partial match for title (min 2 characters)
+ *                 description: Case-insensitive partial match for title
  *                 example: "Market"
  *               description:
  *                 type: string
- *                 description: Case-insensitive partial match for description (min 2 characters)
+ *                 description: Case-insensitive partial match for description
  *                 example: "trading"
  *               categories:
  *                 type: array
  *                 items:
  *                   type: string
- *                 description: Match any of the provided categories (non-empty array of strings)
+ *                 description: Match any of the provided categories
  *                 example: ["TRADING", "ANALYTICS"]
  *     responses:
  *       200:
- *         description: Search results
+ *         description: Search completed successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Search completed successfully"
  *                 count:
  *                   type: integer
- *                   description: Number of applications found
+ *                   description: Number of unique applications found
+ *                   example: 2
  *                 applications:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Application'
+ *                 warnings:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Any validation warnings for search criteria
+ *                   example: ["Version format warning: partial match will be used"]
+ *                 searchCriteria:
+ *                   type: object
+ *                   properties:
+ *                     appId:
+ *                       type: string
+ *                       example: "trading"
+ *                     version:
+ *                       type: string
+ *                       example: "1.0"
+ *                     title:
+ *                       type: string
+ *                       example: "Market"
+ *                     description:
+ *                       type: string
+ *                       example: "trading"
+ *                     categories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["TRADING", "ANALYTICS"]
  *       400:
  *         description: Invalid search criteria
  *         content:
@@ -411,10 +907,17 @@ router.delete(
  *               properties:
  *                 error:
  *                   type: string
+ *                   example: "No valid search criteria provided"
  *                 details:
  *                   type: string
- *       500:
- *         description: Server error
+ *                   example: "Please provide at least one valid search parameter"
+ *                 validationWarnings:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["Invalid appId provided - ignoring this criteria"]
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
  *         content:
  *           application/json:
  *             schema:
@@ -422,8 +925,20 @@ router.delete(
  *               properties:
  *                 error:
  *                   type: string
+ *                   example: "Not authorized, no token"
+ *       500:
+ *         description: Server error while searching applications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to search applications"
  *                 details:
  *                   type: string
+ *                   example: "Database query error"
  */
 router.post("/v1/apps/search", protect, async (req, res) => {
   try {
@@ -621,7 +1136,124 @@ router.post(
   }
 );
 
-// Add a new endpoint to search by specific intent
+/**
+ * @swagger
+ * /api/v2/apps/intents/{intentName}:
+ *   get:
+ *     summary: Search applications by intent name and optional contexts
+ *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Search for applications that support a specific intent. Supports case-insensitive partial matching for intent names and optional context filtering.
+ *     parameters:
+ *       - in: path
+ *         name: intentName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Name of the intent to search for
+ *         example: "ViewChart"
+ *       - in: query
+ *         name: contexts
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of contexts to filter by
+ *         example: "org.fdc3.instrument,org.fdc3.portfolio"
+ *     responses:
+ *       200:
+ *         description: Search completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Search completed successfully"
+ *                 count:
+ *                   type: integer
+ *                   description: Number of applications found
+ *                   example: 2
+ *                 applications:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: "60d3b41ef3g2c4d5e6f7a8b9"
+ *                       appId:
+ *                         type: string
+ *                         example: "chart-app"
+ *                       title:
+ *                         type: string
+ *                         example: "Advanced Chart Application"
+ *                       description:
+ *                         type: string
+ *                         example: "Interactive charting application"
+ *                       version:
+ *                         type: string
+ *                         example: "1.0.0"
+ *                       categories:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["TRADING", "ANALYTICS"]
+ *                       intents:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             name:
+ *                               type: string
+ *                               example: "ViewChart"
+ *                             displayName:
+ *                               type: string
+ *                               example: "View Chart"
+ *                             contexts:
+ *                               type: array
+ *                               items:
+ *                                 type: string
+ *                               example: ["org.fdc3.instrument"]
+ *                       status:
+ *                         type: string
+ *                         enum: [active, inactive]
+ *                         example: "active"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       403:
+ *         description: Forbidden - User role not authorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, required role missing"
+ *       500:
+ *         description: Server error while searching applications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to search applications by intent"
+ *                 details:
+ *                   type: string
+ *                   example: "Database query error"
+ */
 router.get(
   "/v2/apps/intents/:intentName",
   protect,
@@ -660,29 +1292,129 @@ router.get(
 
 /**
  * @swagger
- * /v1/applications/approve:
- * patch:
- * summary: Approve or reject an application
- * tags: [Applications]
- * requestBody:
- *   required: true
- *   content:
- *     application/json:
- *       schema:
- *         type: object
- *         properties:
- *           appId:
- *             type: string
- *             required: true
- *           approval:
- *             type: string
- *             enum: [accepted, rejected]
- *             required: true
- * responses:
- *   200:
- *     description: Application status updated successfully
- *   404:
- *     description: Application not found
+ * api/applications/approve:
+ *   patch:
+ *     summary: Approve or reject an application
+ *     tags: [Applications]
+ *     security:
+ *       - BearerAuth: []
+ *     description: Approve or reject an application. Requires admin role. Accepting activates the application, rejecting deletes it.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appId
+ *               - approval
+ *             properties:
+ *               appId:
+ *                 type: string
+ *                 description: Unique identifier of the application
+ *                 example: "trading-app-1"
+ *               approval:
+ *                 type: string
+ *                 enum: [accepted, rejected]
+ *                 description: Approval decision
+ *                 example: "accepted"
+ *     responses:
+ *       200:
+ *         description: Application status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Application approved and activated successfully"
+ *                     application:
+ *                       type: object
+ *                       properties:
+ *                         appId:
+ *                           type: string
+ *                           example: "trading-app-1"
+ *                         title:
+ *                           type: string
+ *                           example: "Trading Application"
+ *                         status:
+ *                           type: string
+ *                           example: "active"
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Application rejected and deleted successfully"
+ *                     application:
+ *                       type: object
+ *                       properties:
+ *                         appId:
+ *                           type: string
+ *                           example: "trading-app-1"
+ *                         title:
+ *                           type: string
+ *                           example: "Trading Application"
+ *       400:
+ *         description: Invalid request parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: object
+ *                   properties:
+ *                     error:
+ *                       type: string
+ *                       example: "appId and approval status are required"
+ *                 - type: object
+ *                   properties:
+ *                     error:
+ *                       type: string
+ *                       example: "Invalid approval value"
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, no token"
+ *       403:
+ *         description: Forbidden - User is not an admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Not authorized, admin role required"
+ *       404:
+ *         description: Application not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Application not found"
+ *       500:
+ *         description: Server error while processing request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to process request"
+ *                 details:
+ *                   type: string
+ *                   example: "Database transaction failed"
  */
 router.patch(
   "/applications/approve",

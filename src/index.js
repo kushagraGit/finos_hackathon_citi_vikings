@@ -10,13 +10,13 @@ const { createInitialUser } = require("./seeds/createUser");
 const { createInitialApplications } = require("./seeds/createApplication");
 
 const app = express();
-const path = require('path');
-const expressLayouts = require('express-ejs-layouts');
-const frontendRouter = require('./frontend/public/router/indexrouter')
+const path = require("path");
+const expressLayouts = require("express-ejs-layouts");
+const frontendRouter = require("./frontend/public/router/indexrouter");
 
 // View engine setup
-app.set('views', path.join(__dirname, 'frontend/views'));
-app.set('view engine', 'ejs');
+app.set("views", path.join(__dirname, "frontend/views"));
+app.set("view engine", "ejs");
 app.use(expressLayouts);
 
 // CORS configuration
@@ -35,7 +35,7 @@ app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'frontend/public')));
+app.use(express.static(path.join(__dirname, "frontend/public")));
 
 // Import Swagger setup (after middleware)
 require("./config/swagger")(app);
@@ -96,4 +96,4 @@ process.on("SIGTERM", async () => {
 
 startServer();
 
-console.log('Views directory:', app.get('views'));
+console.log("Frontend directory:", app.get("views"));

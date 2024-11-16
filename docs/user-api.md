@@ -1,286 +1,295 @@
 # User API Documentation
 
-## Table of Contents
+The User API provides endpoints for managing users in the system. It supports user authentication, authorization, CRUD operations, and user approval workflows.
 
-- [Overview](#overview)
-- [Base URL](#base-url)
-- [Endpoints](#endpoints)
-  - [Create User](#create-user)
-  - [Get All Users](#get-all-users)
-  - [Get User by Email](#get-user-by-email)
-  - [Update User](#update-user)
-  - [Delete User](#delete-user)
-  - [Initialize Users](#initialize-users)
-- [Error Handling](#error-handling)
-- [Models](#models)
+## Authorization Roles
 
-## Overview
+The following roles have different levels of access to the API endpoints:
 
-This API provides CRUD operations for managing user data. All endpoints are prefixed with `/v1`.
+| Endpoint | Method | Path | Authorized Roles | Description |
+|----------|--------|------|------------------|-------------|
+| User Login | POST | `/users/login` | All users | Authenticate user and get token |
+| Get User by ID | GET | `/users/id/:userId` | All authenticated users | Retrieve user details by ID |
+| Approve User | PATCH | `/users-approve` | admin | Approve or reject user registration requests|
+| Bulk Delete Users | DELETE | `/users/bulk` | admin | Delete multiple users by email |
+| Create User | POST | `/v1/users` | Public | Submit a request to register new user |
+| Get All Users | GET | `/v1/users` | admin | Retrieve all users |
+| Get User by Email | GET | `/v1/users/{email}` | All authenticated users | Retrieve user details by email |
+| Update User by Email | PATCH | `/v1/users/{email}` | admin, editor | Update user details by email |
+| Delete User by Email | DELETE | `/v1/users/{email}` | admin | Delete user by email |
 
-## Base URL
+## Endpoint Details
 
-```
-http://localhost:8080/v1
-```
+### User Login
 
-## Endpoints
+- **Path**: `/users/login`
+- **Method**: POST
+- **Authorization**: None required
+- **Description**: Authenticate user and generate access token
+- **Request Body**:
 
-### Create User
-
-Creates a new user in the system.
-
-```http
-POST /users
-```
-
-#### Request Body
-
-```json
-{
-  "name": "Vishal Gautam",
-  "email": "vishal.gautam@gmail.com",
-  "password": "securePassword123",
-  "age": 30
-}
-```
-
-#### Success Response (201 Created)
-
-```json
-{
-  "message": "User created successfully",
-  "user": {
-    "name": "Vishal Gautam",
-    "email": "vishal.gautam@gmail.com",
-    "age": 30,
-    "_id": "507f1f77bcf86cd799439011",
-    "createdAt": "2024-03-14T12:00:00.000Z",
-    "updatedAt": "2024-03-14T12:00:00.000Z"
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "userPassword"
   }
-}
-```
+  ```
 
-#### Error Responses
+- **Success Response**:
+  - Status: 200
+  - Returns: User details and authentication token
+- **Error Cases**:
+  - 400: Email doesn't exist
+  - 400: Invalid password
+  - 500: Server error
 
-- `409 Conflict`: User already exists
-- `400 Bad Request`: Invalid input data
+### Get User by ID
+
+- **Path**: `/users/id/:userId`
+- **Method**: GET
+- **Authorization**: Requires authentication
+- **Description**: Retrieve user details by MongoDB ObjectId
+- **Features**:
+  - Password excluded from response
+  - MongoDB ObjectId validation
+- **Response Fields**:
+  - _id
+  - name
+  - email
+  - role (user, admin, editor, desktopAgent)
+  - status (active, inactive)
+  - age
+  - createdAt
+  - updatedAt
+
+### User Approval
+
+- **Path**: `/users-approve`
+- **Method**: PATCH
+- **Authorization**: admin only
+- **Description**: Approve or reject user registrations
+- **Request Body**:
+
+  ```json
+  {
+    "email": "user@example.com",
+    "approval": "accepted" | "rejected"
+  }
+  ```
+
+- **Actions**:
+  - Accept: Sets status to "active"
+  - Reject: Deletes the user
+- **Transaction Support**: Yes
+- **Error Cases**:
+  - 400: Missing email or approval
+  - 400: Invalid approval value
+  - 404: User not found
+  - 500: Transaction/Server error
+
+### Bulk Delete Users
+
+- **Path**: `/users/bulk`
+- **Method**: DELETE
+- **Authorization**: admin only
+- **Description**: Delete multiple users by their email addresses
+- **Request Body**:
+
+  ```json
+  {
+    "emails": ["user1@example.com", "user2@example.com"]
+  }
+  ```
+
+- **Features**:
+  - Transaction support
+  - Batch deletion
+  - Deletion count in response
+- **Error Cases**:
+  - 400: Invalid email list
+  - 500: Transaction/Server error
+
+### Create User (Sign Up)
+
+- **Path**: `/v1/users`
+- **Method**: POST
+- **Authorization**: None required
+- **Description**: Register a new user in the system. Users are created with inactive status by default and are required to be approved by an admin before they can login.
+- **Request Body**:
+
+  ```json
+  {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "password": "strongP@ssw0rd123",
+    "role": "user"  // Optional, defaults to "user"
+  }
+  ```
+
+- **Success Response**:
+  - Status: 201
+  - Returns:
+
+    ```json
+    {
+      "_id": "60d3b41ef3g2c4d5e6f7a8b9",
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "role": "user",
+      "status": "inactive",
+      "token": "jwt_token_string"
+    }
+    ```
+
+- **Error Cases**:
+  - 400: Missing required fields
+  - 409: User with email already exists
+  - 500: Server error
+- **Features**:
+  - Password hashing
+  - Transaction support
+  - Initial status set to "inactive"
+  - JWT token generation
 
 ### Get All Users
 
-Retrieves a list of all users.
-
-```http
-GET /users
-```
-
-#### Success Response (200 OK)
-
-```json
-{
-  "count": 2,
-  "users": [
-    {
-      "name": "Vishal Gautam",
-      "email": "vishal.gautam@gmail.com",
-      "age": 30,
-      "_id": "507f1f77bcf86cd799439011"
-    },
-    {
-      "name": "Jane Doe",
-      "email": "jane@example.com",
-      "age": 28,
-      "_id": "507f1f77bcf86cd799439012"
-    }
-  ]
-}
-```
+- **Path**: `/v1/users`
+- **Method**: GET
+- **Authorization**: admin only
+- **Description**: Retrieve all users
+- **Response Fields**:
+  - count: Number of users
+  - users: Array of user objects (excluding passwords)
+- **Error Cases**:
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 500: Server error
 
 ### Get User by Email
 
-Retrieves a specific user by their email address.
+- **Path**: `/v1/users/{email}`
+- **Method**: GET
+- **Authorization**: Requires authentication
+- **Description**: Retrieve user details by email
+- **Response Fields**:
+  - _id
+  - name
+  - email
+  - role
+  - status
+  - age
+  - createdAt
+  - updatedAt
+- **Error Cases**:
+  - 404: User not found
+  - 500: Server error
 
-```http
-GET /users/:email
-```
+### Update User by Email
 
-#### Parameters
+- **Path**: `/v1/users/{email}`
+- **Method**: PATCH
+- **Authorization**: admin, editor
+- **Description**: Update user details by email
+- **Request Body**:
 
-- `email`: User's email address (URL encoded)
-
-#### Success Response (200 OK)
-
-```json
-{
-  "name": "Vishal Gautam",
-  "email": "vishal.gautam@gmail.com",
-  "age": 30,
-  "_id": "507f1f77bcf86cd799439011"
-}
-```
-
-#### Error Response
-
-- `404 Not Found`: User not found
-
-### Update User
-
-Updates an existing user's information.
-
-```http
-PATCH /users/:email
-```
-
-#### Parameters
-
-- `email`: User's email address (URL encoded)
-
-#### Request Body
-
-```json
-{
-  "name": "Vishal Gautam",
-  "age": 31
-}
-```
-
-#### Allowed Updates
-
-- `name`
-- `password`
-- `age`
-
-#### Success Response (200 OK)
-
-```json
-{
-  "message": "User updated successfully",
-  "user": {
-    "name": "Vishal Gautam",
-    "email": "vishal.gautam@gmail.com",
-    "age": 31,
-    "_id": "507f1f77bcf86cd799439011"
+  ```json
+  {
+    "name": "John Smith",
+    "role": "editor",
+    "age": 35,
+    "status": "active"
   }
-}
-```
+  ```
 
-#### Error Responses
+- **Success Response**:
+  - Status: 200
+  - Returns: Updated user details
+- **Error Cases**:
+  - 400: Invalid updates
+  - 404: User not found
+  - 500: Server error
 
-- `404 Not Found`: User not found
-- `400 Bad Request`: Invalid updates
+### Delete User by Email
 
-### Delete User
+- **Path**: `/v1/users/{email}`
+- **Method**: DELETE
+- **Authorization**: admin only
+- **Description**: Delete user by email
+- **Success Response**:
+  - Status: 200
+  - Returns: Deleted user details
+- **Error Cases**:
+  - 404: User not found
+  - 500: Server error
 
-Removes a user from the system.
+## Common Features Across Endpoints
 
-```http
-DELETE /users/:email
-```
+1. **Authentication**:
+   - Most endpoints require Bearer token authentication
+   - Token generated during login
+   - Token validation on protected routes
 
-#### Parameters
+2. **Error Handling**:
+   - 400: Bad Request / Validation Errors
+   - 401: Unauthorized (missing/invalid token)
+   - 403: Forbidden (insufficient role)
+   - 404: Resource Not Found
+   - 500: Server Error
 
-- `email`: User's email address (URL encoded)
+3. **Transaction Support**:
+   - Used in critical operations (approval, bulk delete)
+   - Automatic rollback on failure
+   - Ensures data consistency
 
-#### Success Response (200 OK)
+4. **Response Format**:
 
-```json
-{
-  "message": "User deleted successfully",
-  "user": {
-    "name": "Vishal Gautam",
-    "email": "vishal.gautam@gmail.com",
-    "age": 30
-  }
-}
-```
+   ```json
+   // Success Response
+   {
+     "message": "Operation successful",
+     "data": { ... }
+   }
 
-#### Error Response
+   // Error Response
+   {
+     "error": "Error message",
+     "details": "Detailed error information"
+   }
+   ```
 
-- `404 Not Found`: User not found
+5. **Security Features**:
+   - Password hashing (bcrypt)
+   - Role-based access control
+   - Token-based authentication
+   - Password excluded from responses
 
-### Initialize Users
+## Best Practices
 
-Seeds the database with initial user data (Development only).
+1. Always include authentication token in protected routes
+2. Use appropriate content-type headers (application/json)
+3. Handle all possible error responses
+4. Validate input data before processing
+5. Use transactions for critical operations
 
-```http
-POST /users/initialize
-```
+## User Roles and Permissions
 
-#### Success Response (201 Created)
+- **admin**: Full access to all endpoints
+- **editor**: Limited administrative access
+- **user**: Basic access to non-administrative features
+- **desktopAgent**: Special role for desktop applications, Desktop agent, or Launchers.
 
-```json
-{
-  "message": "Users initialized successfully"
-}
-```
+## Data Models
 
-#### Error Response
+### User Schema
 
-- `403 Forbidden`: Endpoint not available in production
-
-## Error Handling
-
-All endpoints return error responses in the following format:
-
-```json
-{
-  "error": "Error message",
-  "details": "Detailed error information"
-}
-```
-
-### Common Error Codes
-
-- `400`: Bad Request
-- `403`: Forbidden
-- `404`: Not Found
-- `409`: Conflict
-- `500`: Internal Server Error
-
-## Models
-
-### User Model
-
-```typescript
-{
-  name: string;
-  email: string;
-  password: string;
-  age: number;
-  isAdmin?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
-## Testing Examples
-
-### Using cURL
-
-```bash
-# Create user
-curl -X POST http://localhost:8080/v1/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Vishal Gautam","email":"vishal.gautam@gmail.com","password":"secure123","age":30}'
-
-# Get all users
-curl http://localhost:8080/v1/users
-
-# Get specific user
-curl http://localhost:8080/v1/users/vishal.gautam@gmail.com
-
-# Update user
-curl -X PATCH http://localhost:8080/v1/users/vishal.gautam@gmail.com \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Vishal Gautam","age":31}'
-
-# Delete user
-curl -X DELETE http://localhost:8080/v1/users/vishal.gautam@gmail.com
-```
-
-## Notes
-
-- Password is never returned in responses
-- Email is used as the unique identifier for users
-- All timestamps are in ISO 8601 format
-- The initialize endpoint is only available in development mode
+| Field | Type | Description |
+|-------|------|-------------|
+| id | MongoDB ObjectId | Unique identifier |
+| name | string | User's full name |
+| email | string | Unique email address |
+| password | string | Bcrypt hashed password |
+| role | enum | One of: 'user', 'admin', 'editor', 'desktopAgent' |
+| status | enum | One of: 'active', 'inactive' |
+| age | number | User's age |
+| createdAt | date | Timestamp of creation |
+| updatedAt | date | Timestamp of last update |

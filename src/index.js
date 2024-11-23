@@ -1,44 +1,8 @@
-const express = require("express");
 const env = require("./config/environment");
 const dbOrchestrator = require("./db/DatabaseOrchestrator");
-const cors = require("cors");
-const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 const { createInitialUser } = require("./seeds/createUser");
 const { createInitialApplications } = require("./seeds/createApplication");
-
-const app = express();
-const path = require("path");
-const expressLayouts = require("express-ejs-layouts");
-const configureRoutes = require("./routes");
-
-// View engine setup
-app.set("views", path.join(__dirname, "frontend/views"));
-app.set("view engine", "ejs");
-app.use(expressLayouts);
-
-// CORS configuration
-const corsOptions = {
-  origin: env.isDevelopment()
-    ? ["http://localhost:3000", "http://localhost:3001"] // Development origins
-    : ["https://yourdomain.com"], // Production origins
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-  maxAge: 86400, // 24 hours
-};
-
-// Apply CORS before other middleware
-app.use(cors(corsOptions));
-
-// Middleware
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "frontend/public")));
-
-// Import Swagger setup (after middleware)
-require("./config/swagger")(app);
-
-// Routes
-configureRoutes(app);
+const Server = require("./server");
 
 const startServer = async () => {
   try {
@@ -58,12 +22,9 @@ const startServer = async () => {
       ]);
     }
 
-    // Start server
-    app.listen(env.PORT, () => {
-      console.log(
-        `Server is running on port ${env.PORT} in ${env.NODE_ENV} mode`
-      );
-    });
+    // Initialize and start server
+    const server = new Server(env);
+    await server.start(env.PORT);
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
@@ -86,5 +47,3 @@ process.on("SIGTERM", async () => {
 });
 
 startServer();
-
-console.log("Frontend directory:", app.get("views"));

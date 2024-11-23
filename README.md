@@ -4,6 +4,17 @@
 
 An application directory (appD) is a structured repository of information about apps that can be used in an FDC3-enabled desktop. It provides a secure and efficient way of storing and managing metadata about apps in your ecosystem, with role-based access control and comprehensive API documentation. App Directory (<https://fdc3.finos.org/docs/app-directory/overview>) is a component of the FDC3 platform (<https://fdc3.finos.org/docs/fdc3-intro>).
 
+To streamline your experience, we provide a comprehensive Management Center UI implementation of the App Directory. This intuitive interface allows you to:
+
+- Easily manage applications and users in your ecosystem
+- View and modify application metadata and configurations
+
+The solution includes:
+
+1. **Full App Directory API Suite**: A robust set of REST APIs that you can enhance and extend for your specific needs
+2. **Management Center UI**: An intuitive web interface for managing your FDC3 ecosystem without writing code
+3. **Swagger Documentation**: Complete API documentation to help you integrate and customize
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)

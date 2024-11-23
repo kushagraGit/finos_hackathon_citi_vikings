@@ -2,9 +2,6 @@ const express = require("express");
 const env = require("./config/environment");
 const dbOrchestrator = require("./db/DatabaseOrchestrator");
 const cors = require("cors");
-const userRoutes = require("./routes/user");
-const healthRoutes = require("./routes/health");
-const applicationRoutes = require("./routes/application");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 const { createInitialUser } = require("./seeds/createUser");
 const { createInitialApplications } = require("./seeds/createApplication");
@@ -12,7 +9,7 @@ const { createInitialApplications } = require("./seeds/createApplication");
 const app = express();
 const path = require("path");
 const expressLayouts = require("express-ejs-layouts");
-const frontendRouter = require("./frontend/public/router/indexrouter");
+const configureRoutes = require("./routes");
 
 // View engine setup
 app.set("views", path.join(__dirname, "frontend/views"));
@@ -41,13 +38,7 @@ app.use(express.static(path.join(__dirname, "frontend/public")));
 require("./config/swagger")(app);
 
 // Routes
-app.use("/v1", healthRoutes);
-app.use("/v1", userRoutes);
-app.use("/api", applicationRoutes);
-app.use("/", frontendRouter);
-
-app.use(errorHandler);
-app.use(notFound);
+configureRoutes(app);
 
 const startServer = async () => {
   try {

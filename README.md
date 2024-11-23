@@ -98,9 +98,9 @@ This will start the API server and the UI, both running on port `8080`. You can 
 
 For comprehensive API documentation, please refer to the following markdown files in the `docs/` folder:
 
-- [Health Check API](docs/health-check.md)
-- [User API](docs/user-api.md)
-- [Application API](docs/application-api.md)
+- [Health Check API](docs/api/health-check.md)
+- [User API](docs/api/user.md)
+- [Application API](docs/api/application.md)
 
 Access the Swagger documentation at:
 

@@ -51,9 +51,9 @@ project-root/
 │   └── index.js
 │
 ├── docs/
-│   ├── user-api.md
-│   ├── application-api.md
-│   ├── health-check-api.md
+│   ├── api/user.md
+│   ├── api/application.md
+│   ├── api/health-check.md
 │   └── postman/
 │
 └── .env

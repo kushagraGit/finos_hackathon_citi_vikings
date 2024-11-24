@@ -99,10 +99,8 @@ router.post("/users", async (req, res) => {
     const { name, email, password, role = "user" } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).send({
-        error: "Validation failed",
-        details: "Please enter all required fields",
-      });
+      res.status(400);
+      throw new Error("Please Enter all the fields");
     }
 
     // Start transaction
@@ -118,50 +116,35 @@ router.post("/users", async (req, res) => {
           .send({ error: "User with this email already exists" });
       }
 
-      // Hash password before creating user
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Create user data object
-      const userData = {
+      // Create new User instance for validation
+      const user = new User({
         name,
         email,
-        password: hashedPassword,
+        password,
         role,
         status: "inactive",
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
-
-      // Validate against User schema
-      const userInstance = new User(userData);
-
-      // Perform custom validations from User model
-      const schema = User.getSchema();
-      for (const [field, rules] of Object.entries(schema)) {
-        if (rules.validate && userData[field]) {
-          const isValid = await rules.validate.validator(userData[field]);
-          if (!isValid) {
-            await dbOrchestrator.abortTransaction();
-            return res.status(400).send({
-              error: "Validation failed",
-              details: rules.validate.message,
-            });
-          }
-        }
-      }
+      });
 
       // Save using orchestrator
-      const savedUser = await dbOrchestrator.create("User", userData);
+      const savedUser = await dbOrchestrator.create("User", {
+        ...user,
+      });
+
+      // Commit transaction
       await dbOrchestrator.commitTransaction();
 
-      // Create response using User instance
-      const userResponse = new User(savedUser).toJSON();
-
-      res.status(201).send({
-        ...userResponse,
-        token: generateToken(savedUser._id),
-      });
+      if (savedUser) {
+        res.status(201).send({
+          _id: savedUser._id,
+          name: savedUser.name,
+          email: savedUser.email,
+          token: generateToken(savedUser._id),
+          role: savedUser.role,
+          status: savedUser.status,
+        });
+      }
     } catch (error) {
       await dbOrchestrator.abortTransaction();
       throw error;
@@ -282,21 +265,13 @@ router.get("/users", protect, authorize("admin"), async (req, res) => {
       const rawUsers = await dbOrchestrator.find("User", query, projection);
 
       // Transform raw data into User instances
-      const users = rawUsers.map((userData) => {
-        const user = new User(userData);
-        return {
-          ...user.toJSON(), // This will handle _id to id conversion and password removal
-          isAdmin: user.isAdmin(),
-          isActive: user.isActive(),
-        };
-      });
+      const users = rawUsers.map((userData) => new User(userData).toJSON());
 
       await dbOrchestrator.commitTransaction();
 
       res.status(200).send({
-        success: true,
         count: users.length,
-        data: users,
+        users: users,
       });
     } catch (error) {
       await dbOrchestrator.abortTransaction();

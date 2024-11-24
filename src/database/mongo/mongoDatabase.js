@@ -10,48 +10,6 @@ class MongoDatabase extends DatabaseInterface {
     this.connection = mongoose.connection;
     this.session = null;
     this._models = new Map();
-    this._initializeSchemaRegistry();
-  }
-
-  _initializeSchemaRegistry() {
-    // Register User model
-    this.defineSchema("User", {
-      schema: User.getSchema(),
-      options: User.getSchemaOptions(),
-      hooks: User.getHooks(),
-      indexes: User.getIndexes(),
-    });
-
-    // Register Application model
-    this.defineSchema("Application", {
-      schema: Application.getSchema(),
-      options: Application.getSchemaOptions(),
-      hooks: Application.getHooks(),
-      indexes: Application.getIndexes(),
-    });
-  }
-
-  defineSchema(modelName, { schema, options = {}, hooks = {}, indexes = [] }) {
-    if (this._models.has(modelName)) {
-      return this._models.get(modelName);
-    }
-
-    const mongooseSchema = new mongoose.Schema(schema, options);
-
-    // Add hooks
-    if (hooks.preSave) {
-      mongooseSchema.pre("save", hooks.preSave);
-    }
-
-    // Add indexes
-    indexes.forEach((index) => {
-      mongooseSchema.index(index.fields, index.options);
-    });
-
-    // Create and store the model
-    const model = mongoose.model(modelName, mongooseSchema);
-    this._models.set(modelName, model);
-    return model;
   }
 
   async connect() {
@@ -59,6 +17,67 @@ class MongoDatabase extends DatabaseInterface {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
+
+    // Initialize schemas after connection
+    this._initializeSchemaRegistry();
+  }
+
+  _initializeSchemaRegistry() {
+    // Register User model if not already registered
+    if (!this._models.has("User")) {
+      const userSchema = new mongoose.Schema(
+        User.getSchema(),
+        User.getSchemaOptions()
+      );
+
+      // Add hooks
+      const hooks = User.getHooks();
+      if (hooks.preSave) {
+        userSchema.pre("save", hooks.preSave);
+      }
+
+      // Add indexes
+      User.getIndexes().forEach((index) => {
+        userSchema.index(index.fields, index.options);
+      });
+
+      // Create model
+      const UserModel =
+        mongoose.models.User || mongoose.model("User", userSchema);
+      this._models.set("User", UserModel);
+    }
+
+    // Register Application model if not already registered
+    if (!this._models.has("Application")) {
+      const appSchema = new mongoose.Schema(
+        Application.getSchema(),
+        Application.getSchemaOptions()
+      );
+
+      const hooks = Application.getHooks();
+      if (hooks.preSave) {
+        appSchema.pre("save", hooks.preSave);
+      }
+
+      Application.getIndexes().forEach((index) => {
+        appSchema.index(index.fields, index.options);
+      });
+
+      const ApplicationModel =
+        mongoose.models.Application || mongoose.model("Application", appSchema);
+      this._models.set("Application", ApplicationModel);
+    }
+  }
+
+  _getModel(collection) {
+    if (!this._models.has(collection)) {
+      this._initializeSchemaRegistry(); // Try to initialize if model not found
+    }
+
+    if (this._models.has(collection)) {
+      return this._models.get(collection);
+    }
+    throw new Error(`Model ${collection} is not defined`);
   }
 
   async disconnect() {
@@ -173,16 +192,10 @@ class MongoDatabase extends DatabaseInterface {
     }
   }
 
-  _getModel(collection) {
-    if (this._models.has(collection)) {
-      return this._models.get(collection);
-    }
-    throw new Error(`Model ${collection} is not defined`);
-  }
-
   _documentToModel(document, ModelClass) {
     if (!document) return null;
-    return new ModelClass(document.toObject());
+    const plainDoc = document.toObject ? document.toObject() : document;
+    return new ModelClass(plainDoc);
   }
 }
 

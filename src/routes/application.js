@@ -167,11 +167,24 @@ router.post(
   authorize("user", "admin", "editor"),
   async (req, res) => {
     try {
+      // Create new Application instance for validation
+      const application = new Application(req.body);
+
+      // Validate intents if present
+      const intentValidations = application.validateIntents();
+      const invalidIntents = intentValidations.filter((v) => !v.isValid);
+      if (invalidIntents.length > 0) {
+        return res.status(400).json({
+          message: "Invalid intents provided",
+          errors: invalidIntents.map((v) => v.errors),
+        });
+      }
+
       await dbOrchestrator.startTransaction();
       try {
         // Check if application exists
         const existingApp = await dbOrchestrator.findOne("Application", {
-          appId: req.body.appId,
+          appId: application.appId,
         });
 
         if (existingApp) {
@@ -181,11 +194,10 @@ router.post(
           });
         }
 
-        // Create new Application instance for validation
-        const application = new Application(req.body);
+        // Save the application
         const savedApp = await dbOrchestrator.create(
           "Application",
-          application.toObject()
+          application
         );
 
         await dbOrchestrator.commitTransaction();
@@ -312,7 +324,10 @@ router.get("/v2/apps", protect, async (req, res) => {
     const apps = await dbOrchestrator.find("Application", {});
     res.status(200).json({
       count: apps.length,
-      applications: apps.map((app) => new Application(app).toJSON()),
+      applications: apps.map((app) => {
+        const applicationInstance = new Application(app);
+        return applicationInstance; // Assuming Application class has a method to convert to JSON if needed
+      }),
     });
   } catch (err) {
     res.status(500).json({
@@ -445,7 +460,9 @@ router.get("/v2/apps/:appId", protect, async (req, res) => {
     if (!app) {
       return res.status(404).json({ error: "Application not found" });
     }
-    res.status(200).json(new Application(app).toJSON());
+
+    const applicationInstance = new Application(app);
+    res.status(200).json(applicationInstance); // Assuming Application class is serializable or has a toJSON method
   } catch (err) {
     res.status(500).json({
       error: "Failed to fetch application",
@@ -655,10 +672,23 @@ router.patch(
         const updatedApp = new Application(app);
         updates.forEach((update) => (updatedApp[update] = req.body[update]));
 
+        // Validate intents if they are being updated
+        if (updates.includes("intents")) {
+          const intentValidations = updatedApp.validateIntents();
+          const invalidIntents = intentValidations.filter((v) => !v.isValid);
+          if (invalidIntents.length > 0) {
+            await dbOrchestrator.abortTransaction();
+            return res.status(400).json({
+              message: "Invalid intents provided",
+              errors: invalidIntents.map((v) => v.errors),
+            });
+          }
+        }
+
         const savedApp = await dbOrchestrator.findOneAndUpdate(
           "Application",
           { appId: req.params.appId },
-          updatedApp.toObject(),
+          updatedApp,
           { new: true }
         );
 
@@ -1548,10 +1578,12 @@ router.get("/v2/apps/:appId/versions", protect, async (req, res) => {
   try {
     const { appId } = req.params;
 
-    // Find all applications with the given appId
-    const applications = await Application.find({ appId }).sort({
-      version: -1,
-    }); // Sort by version in descending order
+    // Find all applications with the given appId using dbOrchestrator
+    const applications = await dbOrchestrator.find(
+      "Application",
+      { appId },
+      { sort: { version: -1 } }
+    );
 
     if (!applications || applications.length === 0) {
       return res.status(404).json({

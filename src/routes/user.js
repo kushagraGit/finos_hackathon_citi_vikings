@@ -118,32 +118,44 @@ router.post("/users", async (req, res) => {
           .send({ error: "User with this email already exists" });
       }
 
-      // Create and validate User instance
-      const userInstance = new User({
+      // Hash password before creating user
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      // Create user data object
+      const userData = {
         name,
         email,
-        password,
+        password: hashedPassword,
         role,
-      });
+        status: "inactive",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      // Validate the instance before saving
-      const validationError = userInstance.validateSync();
-      if (validationError) {
-        await dbOrchestrator.abortTransaction();
-        return res.status(400).send({
-          error: "Validation failed",
-          details: validationError.message,
-        });
+      // Validate against User schema
+      const userInstance = new User(userData);
+
+      // Perform custom validations from User model
+      const schema = User.getSchema();
+      for (const [field, rules] of Object.entries(schema)) {
+        if (rules.validate && userData[field]) {
+          const isValid = await rules.validate.validator(userData[field]);
+          if (!isValid) {
+            await dbOrchestrator.abortTransaction();
+            return res.status(400).send({
+              error: "Validation failed",
+              details: rules.validate.message,
+            });
+          }
+        }
       }
 
       // Save using orchestrator
-      const savedUser = await dbOrchestrator.create(
-        "User",
-        userInstance.toObject()
-      );
+      const savedUser = await dbOrchestrator.create("User", userData);
       await dbOrchestrator.commitTransaction();
 
-      // Create response object using the model's toJSON transform
+      // Create response using User instance
       const userResponse = new User(savedUser).toJSON();
 
       res.status(201).send({
@@ -179,6 +191,9 @@ router.post("/users", async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
  *                 count:
  *                   type: integer
  *                   example: 2
@@ -213,6 +228,12 @@ router.post("/users", async (req, res) => {
  *                         type: string
  *                         format: date-time
  *                         example: "2024-03-15T10:30:00Z"
+ *                       isAdmin:
+ *                         type: boolean
+ *                         example: false
+ *                       isActive:
+ *                         type: boolean
+ *                         example: true
  *       401:
  *         description: Unauthorized - No token provided or invalid token
  *         content:
@@ -249,13 +270,41 @@ router.post("/users", async (req, res) => {
  */
 router.get("/users", protect, authorize("admin"), async (req, res) => {
   try {
-    const users = await dbOrchestrator.find("User", {}, { password: 0 });
-    res.status(200).send({
-      count: users.length,
-      users: users.map((user) => new User(user).toJSON()),
-    });
+    // Get query parameters for filtering
+    const query = {};
+    const projection = { password: 0 }; // Exclude password field
+
+    // Start transaction for consistent read
+    await dbOrchestrator.startTransaction();
+
+    try {
+      // Get users from database using orchestrator
+      const rawUsers = await dbOrchestrator.find("User", query, projection);
+
+      // Transform raw data into User instances
+      const users = rawUsers.map((userData) => {
+        const user = new User(userData);
+        return {
+          ...user.toJSON(), // This will handle _id to id conversion and password removal
+          isAdmin: user.isAdmin(),
+          isActive: user.isActive(),
+        };
+      });
+
+      await dbOrchestrator.commitTransaction();
+
+      res.status(200).send({
+        success: true,
+        count: users.length,
+        data: users,
+      });
+    } catch (error) {
+      await dbOrchestrator.abortTransaction();
+      throw error;
+    }
   } catch (error) {
     res.status(500).send({
+      success: false,
       error: "Failed to fetch users",
       details: error.message,
     });
@@ -339,16 +388,49 @@ router.get("/users", protect, authorize("admin"), async (req, res) => {
  */
 router.get("/users/:email", async (req, res) => {
   try {
-    const user = await dbOrchestrator.findOne(
-      "User",
-      { email: req.params.email },
-      { password: 0 }
-    );
+    // Start transaction for consistent read
+    await dbOrchestrator.startTransaction();
 
-    if (!user) {
-      return res.status(404).send({ error: "User not found" });
+    try {
+      // Validate email format using User schema validator
+      const schema = User.getSchema();
+      const isValidEmail = await schema.email.validate.validator(
+        req.params.email
+      );
+      if (!isValidEmail) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).send({
+          error: "Validation failed",
+          details: schema.email.validate.message,
+        });
+      }
+
+      // Find user by email
+      const rawUser = await dbOrchestrator.findOne(
+        "User",
+        { email: req.params.email.toLowerCase() }, // Ensure lowercase email search
+        { password: 0 }
+      );
+
+      if (!rawUser) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(404).send({ error: "User not found" });
+      }
+
+      // Transform to User instance and get formatted response
+      const user = new User(rawUser);
+      const userResponse = {
+        ...user.toJSON(),
+        isAdmin: user.isAdmin(),
+        isActive: user.isActive(),
+      };
+
+      await dbOrchestrator.commitTransaction();
+      res.status(200).send(userResponse);
+    } catch (error) {
+      await dbOrchestrator.abortTransaction();
+      throw error;
     }
-    res.status(200).send(user);
   } catch (error) {
     res.status(500).send({
       error: "Failed to fetch user",
@@ -500,31 +582,67 @@ router.patch(
     }
 
     try {
-      // Create update data object with only the fields being updated
-      const updateData = {};
-      updates.forEach((field) => {
-        updateData[field] = req.body[field];
-      });
+      // Start transaction
+      await dbOrchestrator.startTransaction();
 
-      const user = await dbOrchestrator.findOneAndUpdate(
-        "User",
-        { email: req.params.email },
-        updateData,
-        { new: true }
-      );
+      try {
+        // Find existing user
+        const existingUser = await dbOrchestrator.findOne("User", {
+          email: req.params.email,
+        });
 
-      if (!user) {
-        return res.status(404).send({ error: "User not found" });
+        if (!existingUser) {
+          await dbOrchestrator.abortTransaction();
+          return res.status(404).send({ error: "User not found" });
+        }
+
+        // Create update data object with only the fields being updated
+        const updateData = {
+          ...existingUser,
+          ...Object.fromEntries(
+            updates.map((field) => [field, req.body[field]])
+          ),
+          updatedAt: new Date(),
+        };
+
+        // Validate updates using User schema
+        const userInstance = new User(updateData);
+        const schema = User.getSchema();
+
+        // Validate each updated field
+        for (const field of updates) {
+          if (schema[field]?.validate) {
+            const isValid = await schema[field].validate.validator(
+              updateData[field]
+            );
+            if (!isValid) {
+              await dbOrchestrator.abortTransaction();
+              return res.status(400).send({
+                error: "Validation failed",
+                details: schema[field].validate.message,
+              });
+            }
+          }
+        }
+
+        // Update user
+        const updatedUser = await dbOrchestrator.findOneAndUpdate(
+          "User",
+          { email: req.params.email },
+          updateData,
+          { new: true }
+        );
+
+        await dbOrchestrator.commitTransaction();
+
+        res.status(200).send({
+          message: "User updated successfully",
+          user: new User(updatedUser).toJSON(),
+        });
+      } catch (error) {
+        await dbOrchestrator.abortTransaction();
+        throw error;
       }
-
-      // Create User instance for response formatting
-      const userResponse = new User(user).toJSON();
-      delete userResponse.password;
-
-      res.status(200).send({
-        message: "User updated successfully",
-        user: userResponse,
-      });
     } catch (error) {
       res.status(400).send({
         error: "Failed to update user",
@@ -625,22 +743,43 @@ router.delete(
   authorize("admin"),
   async (req, res) => {
     try {
-      const user = await dbOrchestrator.findOneAndDelete("User", {
-        email: req.params.email,
-      });
+      // Start transaction
+      await dbOrchestrator.startTransaction();
 
-      if (!user) {
-        return res.status(404).send({ error: "User not found" });
+      try {
+        // Find user first to ensure it exists and to return proper data
+        const existingUser = await dbOrchestrator.findOne("User", {
+          email: req.params.email,
+        });
+
+        if (!existingUser) {
+          await dbOrchestrator.abortTransaction();
+          return res.status(404).send({ error: "User not found" });
+        }
+
+        // Create User instance for proper data handling
+        const userInstance = new User(existingUser);
+
+        // Delete the user
+        await dbOrchestrator.findOneAndDelete("User", {
+          email: req.params.email,
+        });
+
+        await dbOrchestrator.commitTransaction();
+
+        // Use User class toJSON method to format response
+        res.status(200).send({
+          message: "User deleted successfully",
+          user: {
+            name: userInstance.name,
+            email: userInstance.email,
+            age: userInstance.age,
+          },
+        });
+      } catch (error) {
+        await dbOrchestrator.abortTransaction();
+        throw error;
       }
-
-      res.status(200).send({
-        message: "User deleted successfully",
-        user: {
-          name: user.name,
-          email: user.email,
-          age: user.age,
-        },
-      });
     } catch (error) {
       res.status(500).send({
         error: "Failed to delete user",
@@ -781,49 +920,75 @@ router.patch(
     const { email, approval } = req.body;
 
     if (!email || !approval) {
-      return res
-        .status(400)
-        .send({ error: "Email and approval status are required" });
+      return res.status(400).send({
+        error: "Email and approval status are required",
+      });
+    }
+
+    // Validate approval value
+    const validApprovals = ["accepted", "rejected"];
+    if (!validApprovals.includes(approval)) {
+      return res.status(400).send({
+        error: "Invalid approval value",
+        validValues: validApprovals,
+      });
     }
 
     try {
-      // Start transaction
       await dbOrchestrator.startTransaction();
 
       try {
-        const user = await dbOrchestrator.findOne("User", { email });
-
-        if (!user) {
+        // Find and validate user
+        const existingUser = await dbOrchestrator.findOne("User", { email });
+        if (!existingUser) {
           await dbOrchestrator.abortTransaction();
           return res.status(404).send({ error: "User not found" });
         }
 
+        // Create User instance for validation and business logic
+        const userInstance = new User(existingUser);
+
         if (approval === "accepted") {
+          // Validate status change using User schema
+          const schema = User.getSchema();
+          const isValidStatus = schema.status.enum.includes("active");
+          if (!isValidStatus) {
+            await dbOrchestrator.abortTransaction();
+            return res.status(400).send({
+              error: "Invalid status transition",
+              details: "Active status not allowed in schema",
+            });
+          }
+
+          // Update user status
           const updatedUser = await dbOrchestrator.findOneAndUpdate(
             "User",
             { email },
-            { status: "active" },
+            {
+              status: "active",
+              updatedAt: new Date(),
+            },
             { new: true }
           );
 
           await dbOrchestrator.commitTransaction();
+
           return res.status(200).send({
             message: "User approved and activated successfully",
             user: new User(updatedUser).toJSON(),
           });
-        } else if (approval === "rejected") {
+        } else {
+          // approval === "rejected"
+          // Delete user
           const deletedUser = await dbOrchestrator.findOneAndDelete("User", {
             email,
           });
-
           await dbOrchestrator.commitTransaction();
+
           return res.status(200).send({
             message: "User rejected and deleted successfully",
             user: new User(deletedUser).toJSON(),
           });
-        } else {
-          await dbOrchestrator.abortTransaction();
-          return res.status(400).send({ error: "Invalid approval value" });
         }
       } catch (error) {
         await dbOrchestrator.abortTransaction();
@@ -938,28 +1103,67 @@ router.patch(
  *                   example: "Database connection error"
  */
 router.post("/users/login", async (req, res) => {
-  const { email, password } = req.body;
-
   try {
-    const user = await dbOrchestrator.findOne("User", { email });
-    if (!user) {
-      return res.status(400).json({ error: "Email doesn't exist" });
+    // Start transaction for consistent read
+    await dbOrchestrator.startTransaction();
+
+    try {
+      const { email, password } = req.body;
+
+      // Validate email format using User schema validator
+      const schema = User.getSchema();
+      const isValidEmail = await schema.email.validate.validator(email);
+      if (!isValidEmail) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).json({
+          error: "Validation failed",
+          details: schema.email.validate.message,
+        });
+      }
+
+      // Find user with case-insensitive email search
+      const rawUser = await dbOrchestrator.findOne("User", {
+        email: email.toLowerCase(),
+      });
+
+      if (!rawUser) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).json({ error: "Email doesn't exist" });
+      }
+
+      // Create User instance for business logic and validation
+      const userInstance = new User(rawUser);
+
+      // Verify password
+      const isMatch = await bcrypt.compare(password, userInstance.password);
+      if (!isMatch) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).json({ error: "Invalid password" });
+      }
+
+      // Check if user is active
+      if (!userInstance.isActive()) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).json({ error: "Account is not active" });
+      }
+
+      await dbOrchestrator.commitTransaction();
+
+      // Generate token and return response
+      const token = generateToken(userInstance._id);
+      res.status(200).json({
+        user: userInstance.toJSON(),
+        token,
+      });
+    } catch (error) {
+      await dbOrchestrator.abortTransaction();
+      throw error;
     }
-
-    const userInstance = new User(user);
-    const isMatch = await bcrypt.compare(password, userInstance.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid password" });
-    }
-
-    const token = generateToken(userInstance._id);
-
-    res.status(200).json({
-      user: userInstance.toJSON(),
-      token,
-    });
   } catch (error) {
-    res.status(500).json({ error: "Server error", details: error.message });
+    res.status(500).json({
+      error: "Server error",
+      details: error.message,
+    });
   }
 });
 
@@ -1088,16 +1292,27 @@ router.delete("/users/bulk", protect, authorize("admin"), async (req, res) => {
  */
 router.get("/users/id/:userId", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    // Start transaction for consistent read
+    await dbOrchestrator.startTransaction();
+
+    try {
+      // Find user using orchestrator
+      const rawUser = await dbOrchestrator.findById("User", req.params.userId);
+
+      if (!rawUser) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Create User instance and format response
+      const userInstance = new User(rawUser);
+
+      await dbOrchestrator.commitTransaction();
+      res.status(200).json(userInstance.toJSON());
+    } catch (error) {
+      await dbOrchestrator.abortTransaction();
+      throw error;
     }
-
-    // Return user without password
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.status(200).json(userResponse);
   } catch (error) {
     res.status(500).json({
       error: "Failed to fetch user",

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 
 class User {
   constructor(data) {
+    this._id = data._id;
     this.name = data.name;
     this.email = data.email;
     this.password = data.password;
@@ -25,6 +26,9 @@ class User {
   toJSON() {
     const obj = { ...this };
     delete obj.password;
+    if (this._id) {
+      obj.id = this._id.toString();
+    }
     return obj;
   }
 

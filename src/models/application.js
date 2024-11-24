@@ -216,6 +216,27 @@ class Application {
     this.intents.push(intent);
     return intent;
   }
+
+  toJSON() {
+    return {
+      appId: this.appId,
+      title: this.title,
+      description: this.description,
+      version: this.version,
+      categories: this.categories,
+      icons: this.icons,
+      screenshots: this.screenshots,
+      contactEmail: this.contactEmail,
+      supportEmail: this.supportEmail,
+      moreInfo: this.moreInfo,
+      publisher: this.publisher,
+      details: this.details,
+      intents: this.intents,
+      status: this.status,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
+  }
 }
 
 module.exports = Application;

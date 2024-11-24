@@ -6,9 +6,9 @@ const Server = require("./server");
 
 const startServer = async () => {
   try {
-    // Connect to the database using the orchestrator
-    const dbInstance = dbOrchestrator.getInstance();
-    await dbInstance.connect();
+    // Connect to database first, then get instance
+    await dbOrchestrator.initialize();
+    await dbOrchestrator.connect();
     console.log(`Connected to ${env.DB_TYPE} database in ${env.NODE_ENV} mode`);
 
     // Initialize data in development
@@ -34,15 +34,13 @@ const startServer = async () => {
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("SIGINT received: closing HTTP server");
-  const dbInstance = dbOrchestrator.getInstance();
-  await dbInstance.disconnect();
+  await dbOrchestrator.disconnect();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("SIGTERM received: closing HTTP server");
-  const dbInstance = dbOrchestrator.getInstance();
-  await dbInstance.disconnect();
+  await dbOrchestrator.disconnect();
   process.exit(0);
 });
 

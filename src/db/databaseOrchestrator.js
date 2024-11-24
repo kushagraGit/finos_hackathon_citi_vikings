@@ -1,7 +1,6 @@
 const environment = require("../config/environment");
 const MongoDatabase = require("../database/mongo/mongoDatabase");
-// const PostgresDatabase = require("./postgres/PostgresDatabase"); // Future implementation
-// const OracleDatabase = require("./oracle/OracleDatabase"); // Future implementation
+const PostgresDatabase = require("../database/postgres/postgresDatabase");
 
 class DatabaseOrchestrator {
   constructor() {
@@ -15,12 +14,9 @@ class DatabaseOrchestrator {
       case "mongo":
         this.dbInstance = new MongoDatabase(environment.getDatabaseUri());
         break;
-      // case "postgres":
-      //     this.dbInstance = new PostgresDatabase(environment.getDatabaseUri());
-      //     break;
-      // case "oracle":
-      //     this.dbInstance = new OracleDatabase(environment.getDatabaseUri());
-      //     break;
+      case "postgres":
+        this.dbInstance = new PostgresDatabase(environment.getDatabaseUri());
+        break;
       default:
         throw new Error(`Unsupported database type: ${dbType}`);
     }

@@ -99,8 +99,10 @@ router.post("/users", async (req, res) => {
     const { name, email, password, role = "user" } = req.body;
 
     if (!name || !email || !password) {
-      res.status(400);
-      throw new Error("Please Enter all the fields");
+      return res.status(400).send({
+        error: "Validation failed",
+        details: "Please enter all required fields",
+      });
     }
 
     // Start transaction
@@ -116,30 +118,38 @@ router.post("/users", async (req, res) => {
           .send({ error: "User with this email already exists" });
       }
 
-      // Create new User instance for validation
-      const user = new User({
+      // Create and validate User instance
+      const userInstance = new User({
         name,
         email,
         password,
         role,
       });
 
-      // Save using orchestrator
-      const savedUser = await dbOrchestrator.create("User", user.toObject());
-
-      // Commit transaction
-      await dbOrchestrator.commitTransaction();
-
-      if (savedUser) {
-        res.status(201).send({
-          _id: savedUser._id,
-          name: savedUser.name,
-          email: savedUser.email,
-          token: generateToken(savedUser._id),
-          role: savedUser.role,
-          status: savedUser.status,
+      // Validate the instance before saving
+      const validationError = userInstance.validateSync();
+      if (validationError) {
+        await dbOrchestrator.abortTransaction();
+        return res.status(400).send({
+          error: "Validation failed",
+          details: validationError.message,
         });
       }
+
+      // Save using orchestrator
+      const savedUser = await dbOrchestrator.create(
+        "User",
+        userInstance.toObject()
+      );
+      await dbOrchestrator.commitTransaction();
+
+      // Create response object using the model's toJSON transform
+      const userResponse = new User(savedUser).toJSON();
+
+      res.status(201).send({
+        ...userResponse,
+        token: generateToken(savedUser._id),
+      });
     } catch (error) {
       await dbOrchestrator.abortTransaction();
       throw error;

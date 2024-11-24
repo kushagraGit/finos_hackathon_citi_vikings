@@ -4,6 +4,17 @@
 
 An application directory (appD) is a structured repository of information about apps that can be used in an FDC3-enabled desktop. It provides a secure and efficient way of storing and managing metadata about apps in your ecosystem, with role-based access control and comprehensive API documentation. App Directory (<https://fdc3.finos.org/docs/app-directory/overview>) is a component of the FDC3 platform (<https://fdc3.finos.org/docs/fdc3-intro>).
 
+To streamline your experience, we provide a comprehensive Management Center UI implementation of the App Directory. This intuitive interface allows you to:
+
+- Easily manage applications and users in your ecosystem
+- View and modify application metadata and configurations
+
+The solution includes:
+
+1. **Full App Directory API Suite**: A robust set of REST APIs that you can enhance and extend for your specific needs
+2. **Management Center UI**: An intuitive web interface for managing your FDC3 ecosystem without writing code
+3. **Swagger Documentation**: Complete API documentation to help you integrate and customize
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -98,9 +109,9 @@ This will start the API server and the UI, both running on port `8080`. You can 
 
 For comprehensive API documentation, please refer to the following markdown files in the `docs/` folder:
 
-- [Health Check API](docs/health-check.md)
-- [User API](docs/user-api.md)
-- [Application API](docs/application-api.md)
+- [Health Check API](docs/api/health-check.md)
+- [User API](docs/api/user.md)
+- [Application API](docs/api/application.md)
 
 Access the Swagger documentation at:
 

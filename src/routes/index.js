@@ -1,7 +1,7 @@
 const healthRoutes = require("./health");
 const userRoutes = require("./user");
 const applicationRoutes = require("./application");
-const frontendRouter = require("../frontend/public/router/indexrouter");
+const frontendRouter = require("../frontend/public/router/routes");
 const { errorHandler, notFound } = require("../middleware/errorMiddleware");
 
 const configureRoutes = (app) => {

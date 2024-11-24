@@ -20,9 +20,10 @@ class Server {
 
     // CORS configuration
     const corsOptions = {
-      origin: this.env.isDevelopment()
-        ? ["http://localhost:3000", "http://localhost:3001"]
-        : ["https://yourdomain.com"],
+      origin: [
+        `http://${this.env.HOST}:${this.env.PORT}`,
+        `http://${this.env.HOST}:8080`,
+      ],
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,
